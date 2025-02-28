@@ -48,7 +48,7 @@ components.html(
     """
     <div class="header">
         <h1>Dashboard Fiscal Avançada</h1>
-        <p>Correlacione seus lançamentos com o Plano de Contas</p>
+        <p>Correlacione seus lançamentos com o Plano de Contas para análise aprofundada</p>
     </div>
     """, height=150
 )
@@ -95,9 +95,8 @@ if plano_file is not None and dados_file is not None:
         else:
             df_plano = pd.read_csv(plano_file)
         
-        # Normaliza os nomes das colunas e remove espaços
+        # Normaliza os nomes das colunas do plano e renomeia
         df_plano.columns = df_plano.columns.str.strip().str.lower()
-        # Renomeia para o padrão esperado
         rename_map_plano = {
             'codcontacontabil': 'CodContaContabil',
             'contacontabil': 'ContaContabil'
@@ -106,7 +105,6 @@ if plano_file is not None and dados_file is not None:
             if k in df_plano.columns:
                 df_plano.rename(columns={k: v}, inplace=True)
         
-        # Verifica se o Plano de Contas possui as colunas necessárias
         required_plano = {"CodContaContabil", "ContaContabil"}
         missing_plano = required_plano - set(df_plano.columns)
         if missing_plano:
@@ -121,13 +119,12 @@ if plano_file is not None and dados_file is not None:
         else:
             df = pd.read_csv(dados_file)
         
-        # Normaliza os nomes das colunas: remove espaços e converte para minúsculas
         df.columns = df.columns.str.strip().str.lower()
         rename_map_dados = {
             'codcontacontabil': 'CodContaContabil',
             'tipo': 'Tipo',
             'valor': 'Valor',
-            'mês': 'MÊS',    # se existir
+            'mês': 'MÊS',  
             'data': 'DATA',
             'descrição': 'DESCRICAO'
         }
@@ -135,7 +132,6 @@ if plano_file is not None and dados_file is not None:
             if k in df.columns:
                 df.rename(columns={k: v}, inplace=True)
         
-        # Verifica se o arquivo de dados possui as colunas necessárias
         required_dados = {"CodContaContabil", "Tipo", "Valor"}
         missing_dados = required_dados - set(df.columns)
         if missing_dados:
@@ -172,7 +168,6 @@ if plano_file is not None and dados_file is not None:
                 df.sort_values("Data", inplace=True)
                 x_axis = "Data"
                 df["MÊS_FORMATADO"] = df["Data"].dt.strftime("%m/%Y")
-                # Filtro de intervalo de datas na sidebar
                 min_date = df["Data"].min().date()
                 max_date = df["Data"].max().date()
                 date_range = st.sidebar.date_input("Selecione o intervalo de datas", [min_date, max_date])
@@ -192,12 +187,7 @@ if plano_file is not None and dados_file is not None:
             how="left"
         )
         
-        # Se desejar, exiba os dados do merge para conferência:
-        # st.write(df.head())
-        
-        # ------------------------------------------------------------------------------
-        # Filtro (Opcional): Seleciona as contas a serem analisadas, a partir do plano
-        # ------------------------------------------------------------------------------
+        # Filtro: Seleciona as contas para análise com base no Plano de Contas
         contas_disponiveis = df_plano["ContaContabil"].unique().tolist()
         contas_selecionadas = st.sidebar.multiselect("Selecione as Contas para Análise:",
                                                      options=contas_disponiveis,
@@ -205,7 +195,7 @@ if plano_file is not None and dados_file is not None:
         df = df[df["ContaContabil"].isin(contas_selecionadas)]
         
         # ------------------------------------------------------------------------------
-        # Mapeamento do Tipo: "D" para Despesa, "C" para Receita
+        # Mapeamento do Tipo: "D" para Despesa e "C" para Receita
         # ------------------------------------------------------------------------------
         df['Tipo_Descricao'] = df['Tipo'].map({'D': 'Despesa', 'C': 'Receita'})
         
@@ -216,7 +206,7 @@ if plano_file is not None and dados_file is not None:
         total_despesa = df.loc[df['Tipo'] == 'D', 'Valor'].sum()
         saldo = total_receita - total_despesa
         
-        # Agrupamento por conta para gráfico de barras
+        # Agrupamento para gráfico de barras por Conta
         df_agg = df.groupby("ContaContabil")["Valor"].sum().reset_index()
         df_agg["Valor"] = df_agg["Valor"].apply(format_brl)
         
@@ -226,7 +216,7 @@ if plano_file is not None and dados_file is not None:
         tabs = st.tabs(["Dashboard", "Relatório Consolidado"])
         
         # ------------------------------------------------------------------------------
-        # Aba "Dashboard": Métricas e Gráficos Interativos
+        # Aba "Dashboard": Métricas e Gráficos para Análise
         # ------------------------------------------------------------------------------
         with tabs[0]:
             st.markdown("## Métricas Gerais")
@@ -235,9 +225,10 @@ if plano_file is not None and dados_file is not None:
             col2.metric("Total Despesa", format_brl(total_despesa))
             col3.metric("Saldo", format_brl(saldo))
             
-            # Gráfico: Evolução dos Lançamentos por Conta (se houver data)
+            st.markdown("### Análise Temporal por Conta")
             if x_axis in ["Data", "MÊS"]:
                 df_line = df.copy()
+                # Gráfico de linhas: evolução dos lançamentos por conta
                 df_line = df_line.groupby([x_axis, "ContaContabil"])["Valor"].sum().reset_index()
                 fig_line = px.line(
                     df_line,
@@ -254,7 +245,8 @@ if plano_file is not None and dados_file is not None:
                 st.plotly_chart(fig_line, use_container_width=True, config={"locale": "pt-BR"})
                 st.markdown("</div>", unsafe_allow_html=True)
             
-            # Gráfico: Total de Lançamentos por Conta (Barras)
+            st.markdown("### Distribuição dos Lançamentos por Conta")
+            # Gráfico de barras: total de lançamentos por conta
             fig_bar = px.bar(
                 df_agg,
                 x="ContaContabil",
@@ -265,9 +257,25 @@ if plano_file is not None and dados_file is not None:
             st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
             st.plotly_chart(fig_bar, use_container_width=True, config={"locale": "pt-BR"})
             st.markdown("</div>", unsafe_allow_html=True)
+            
+            st.markdown("### Comparação entre Receitas e Despesas por Conta")
+            # Gráfico de barras agrupadas: receitas e despesas por conta
+            df_comparativo = df.groupby(["ContaContabil", "Tipo_Descricao"])["Valor"].sum().reset_index()
+            fig_comp = px.bar(
+                df_comparativo,
+                x="ContaContabil",
+                y="Valor",
+                color="Tipo_Descricao",
+                barmode="group",
+                title="Receitas vs Despesas por Conta",
+                template="plotly_white"
+            )
+            st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
+            st.plotly_chart(fig_comp, use_container_width=True, config={"locale": "pt-BR"})
+            st.markdown("</div>", unsafe_allow_html=True)
         
         # ------------------------------------------------------------------------------
-        # Aba "Relatório Consolidado": Tabela de Agrupamento por Conta e Tipo
+        # Aba "Relatório Consolidado": Tabela e Dados Detalhados
         # ------------------------------------------------------------------------------
         with tabs[1]:
             st.markdown("<div class='data-container'>", unsafe_allow_html=True)
@@ -277,7 +285,6 @@ if plano_file is not None and dados_file is not None:
             st.dataframe(relatorio)
             st.markdown("</div>", unsafe_allow_html=True)
             
-            # Dados Detalhados
             st.markdown("<div class='data-container'>", unsafe_allow_html=True)
             st.subheader("Dados Detalhados")
             display_df = df.copy()
