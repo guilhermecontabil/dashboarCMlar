@@ -78,13 +78,10 @@ def format_brl(x):
         return x
 
 # ------------------------------------------------------------------------------
-# Sidebar: Upload dos Arquivos
+# Sidebar: Upload dos Arquivos (em Português)
 # ------------------------------------------------------------------------------
 st.sidebar.markdown("## Upload dos Arquivos")
-
-# Upload do Plano de Contas
 plano_file = st.sidebar.file_uploader("Carregar arquivo do Plano de Contas (XLSX ou CSV)", type=["xlsx", "csv"], key="plano")
-# Upload dos Dados Financeiros
 dados_file = st.sidebar.file_uploader("Carregar arquivo de Dados Financeiros (XLSX ou CSV)", type=["xlsx", "csv"], key="dados")
 
 if plano_file is not None and dados_file is not None:
@@ -96,20 +93,16 @@ if plano_file is not None and dados_file is not None:
             df_plano = pd.read_excel(plano_file)
         else:
             df_plano = pd.read_csv(plano_file)
-        
+        # Normaliza os nomes das colunas e renomeia
         df_plano.columns = df_plano.columns.str.strip().str.lower()
-        rename_map_plano = {
-            'codcontacontabil': 'CodContaContabil',
-            'contacontabil': 'ContaContabil'
-        }
+        rename_map_plano = {'codcontacontabil': 'CodContaContabil', 'contacontabil': 'ContaContabil'}
         for k, v in rename_map_plano.items():
             if k in df_plano.columns:
                 df_plano.rename(columns={k: v}, inplace=True)
-        
         required_plano = {"CodContaContabil", "ContaContabil"}
         missing_plano = required_plano - set(df_plano.columns)
         if missing_plano:
-            st.error(f"O arquivo do Plano de Contas deve conter as colunas {missing_plano}.")
+            st.error(f"O arquivo do Plano de Contas deve conter as colunas: {missing_plano}")
             st.stop()
         
         # ------------------------------------------------------------------------------
@@ -119,7 +112,6 @@ if plano_file is not None and dados_file is not None:
             df = pd.read_excel(dados_file)
         else:
             df = pd.read_csv(dados_file)
-        
         df.columns = df.columns.str.strip().str.lower()
         rename_map_dados = {
             'codcontacontabil': 'CodContaContabil',
@@ -132,11 +124,10 @@ if plano_file is not None and dados_file is not None:
         for k, v in rename_map_dados.items():
             if k in df.columns:
                 df.rename(columns={k: v}, inplace=True)
-        
         required_dados = {"CodContaContabil", "Tipo", "Valor"}
         missing_dados = required_dados - set(df.columns)
         if missing_dados:
-            st.error(f"O arquivo de dados deve conter as colunas {missing_dados}.")
+            st.error(f"O arquivo de dados deve conter as colunas: {missing_dados}")
             st.stop()
         
         # ------------------------------------------------------------------------------
@@ -181,22 +172,15 @@ if plano_file is not None and dados_file is not None:
         # ------------------------------------------------------------------------------
         # Merge: Correlaciona os Dados Financeiros com o Plano de Contas
         # ------------------------------------------------------------------------------
-        df = pd.merge(
-            df,
-            df_plano[["CodContaContabil", "ContaContabil"]],
-            on="CodContaContabil",
-            how="left"
-        )
+        df = pd.merge(df, df_plano[["CodContaContabil", "ContaContabil"]], on="CodContaContabil", how="left")
         
-        # Filtro: Seleciona as contas para análise com base no Plano de Contas
+        # Filtro: Seleciona as contas desejadas (baseado no Plano de Contas)
         contas_disponiveis = df_plano["ContaContabil"].unique().tolist()
-        contas_selecionadas = st.sidebar.multiselect("Selecione as Contas para Análise:",
-                                                     options=contas_disponiveis,
-                                                     default=contas_disponiveis)
+        contas_selecionadas = st.sidebar.multiselect("Selecione as Contas para Análise:", options=contas_disponiveis, default=contas_disponiveis)
         df = df[df["ContaContabil"].isin(contas_selecionadas)]
         
         # ------------------------------------------------------------------------------
-        # Mapeamento do Tipo: "D" para Despesa, "C" para Receita
+        # Mapeamento do Tipo para Descrição
         # ------------------------------------------------------------------------------
         df['Tipo_Descricao'] = df['Tipo'].map({'D': 'Despesa', 'C': 'Receita'})
         
@@ -209,10 +193,9 @@ if plano_file is not None and dados_file is not None:
         
         # Agrupamento para gráfico de barras por Conta
         df_agg = df.groupby("ContaContabil")["Valor"].sum().reset_index()
-        df_agg["Valor"] = df_agg["Valor"].apply(format_brl)
         
         # ------------------------------------------------------------------------------
-        # Criação de Abas: Dashboard e Relatório Consolidado
+        # Criação de Abas: Dashboard Financeiro e Relatório Consolidado
         # ------------------------------------------------------------------------------
         tabs = st.tabs(["Dashboard Financeiro", "Relatório Consolidado"])
         
@@ -228,8 +211,7 @@ if plano_file is not None and dados_file is not None:
             
             st.markdown("### Análise Temporal por Conta")
             if x_axis in ["Data", "MÊS"]:
-                df_line = df.copy()
-                df_line = df_line.groupby([x_axis, "ContaContabil"])["Valor"].sum().reset_index()
+                df_line = df.groupby([x_axis, "ContaContabil"])["Valor"].sum().reset_index()
                 fig_line = px.line(
                     df_line,
                     x=x_axis,
@@ -240,23 +222,18 @@ if plano_file is not None and dados_file is not None:
                     template="plotly_dark"
                 )
                 fig_line.update_yaxes(tickformat=',.2f', exponentformat='none')
-                fig_line.update_traces(hovertemplate='%{y:,.2f}')
-                st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
                 st.plotly_chart(fig_line, use_container_width=True, config={"locale": "pt-BR"})
-                st.markdown("</div>", unsafe_allow_html=True)
             
             st.markdown("### Distribuição dos Lançamentos por Conta")
-            # Gráfico de barras: total de lançamentos por conta
             fig_bar = px.bar(
                 df_agg,
                 x="ContaContabil",
                 y="Valor",
                 title="Total de Lançamentos por Conta",
-                template="plotly_dark"
+                template="plotly_dark",
+                color="ContaContabil"  # colorindo de forma automática
             )
-            st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
             st.plotly_chart(fig_bar, use_container_width=True, config={"locale": "pt-BR"})
-            st.markdown("</div>", unsafe_allow_html=True)
             
             st.markdown("### Comparação entre Receitas e Despesas por Conta")
             df_comparativo = df.groupby(["ContaContabil", "Tipo_Descricao"])["Valor"].sum().reset_index()
@@ -267,76 +244,80 @@ if plano_file is not None and dados_file is not None:
                 color="Tipo_Descricao",
                 barmode="group",
                 title="Receitas vs Despesas por Conta",
-                template="plotly_dark"
+                template="plotly_dark",
+                color_discrete_map={"Receita": "#2ca02c", "Despesa": "#d62728"}  # verde para receitas, laranja para despesas
             )
-            st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
             st.plotly_chart(fig_comp, use_container_width=True, config={"locale": "pt-BR"})
-            st.markdown("</div>", unsafe_allow_html=True)
             
             # --------------------------------------------------------------------------
-            # Novo Gráfico: Comparação 1
+            # Gráfico de Comparação 1
             # Compara "RECEITA VENDAS ML", "RECEITA VENDAS SH" e "IMPOSTOS - DAS SIMPLES NACIONAL"
             # --------------------------------------------------------------------------
-            cols_cmp1 = ["RECEITA VENDAS ML", "RECEITA VENDAS SH", "IMPOSTOS - DAS SIMPLES NACIONAL"]
-            if set(cols_cmp1).issubset(df.columns):
-                df_cmp1 = pd.DataFrame({
-                    "Categoria": cols_cmp1,
-                    "Valor": [df[col].sum() for col in cols_cmp1]
-                })
-                fig_cmp1 = px.bar(
-                    df_cmp1,
-                    x="Categoria",
-                    y="Valor",
-                    title="Comparação 1: Vendas vs Impostos Simples Nacional",
-                    template="plotly_dark",
-                    color="Categoria",
-                    color_discrete_map={
-                        "RECEITA VENDAS ML": "#1f77b4",
-                        "RECEITA VENDAS SH": "#ff7f0e",
-                        "IMPOSTOS - DAS SIMPLES NACIONAL": "#2ca02c"
-                    }
-                )
-                st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
-                st.plotly_chart(fig_cmp1, use_container_width=True, config={"locale": "pt-BR"})
-                st.markdown("</div>", unsafe_allow_html=True)
+            cols_cmp1 = ["receita vendas ml", "receita vendas sh", "impostos - das simples nacional"]
+            if set([c.lower() for c in cols_cmp1]).issubset(set(df.columns.str.lower())):
+                # Buscamos as colunas de forma case-insensitive
+                valores_cmp1 = {}
+                for col in cols_cmp1:
+                    # Procura a coluna ignorando case
+                    col_found = [c for c in df.columns if c.lower() == col.lower()]
+                    if col_found:
+                        valores_cmp1[col] = df[col_found[0]].sum()
+                if valores_cmp1:
+                    df_cmp1 = pd.DataFrame({
+                        "Categoria": list(valores_cmp1.keys()),
+                        "Valor": list(valores_cmp1.values())
+                    })
+                    # Definindo um mapa de cores customizado (não usar vermelho para receita)
+                    cmp1_colors = {"receita vendas ml": "#1f77b4", "receita vendas sh": "#ff7f0e", "impostos - das simples nacional": "#2ca02c"}
+                    fig_cmp1 = px.bar(
+                        df_cmp1,
+                        x="Categoria",
+                        y="Valor",
+                        title="Comparação 1: Vendas vs Impostos Simples Nacional",
+                        template="plotly_dark",
+                        color="Categoria",
+                        color_discrete_map={k: cmp1_colors.get(k.lower(), "#cccccc") for k in df_cmp1["Categoria"]}
+                    )
+                    st.plotly_chart(fig_cmp1, use_container_width=True, config={"locale": "pt-BR"})
             
             # --------------------------------------------------------------------------
-            # Novo Gráfico: Comparação 2
-            # Compara "RECEITA VENDAS ML", "RECEITA VENDAS SH" com "COMPRA DE MERCADORIAS PARA REVENDA",
+            # Gráfico de Comparação 2
+            # Compara "RECEITA VENDAS ML" e "RECEITA VENDAS SH" com "COMPRA DE MERCADORIAS PARA REVENDA", 
             # "EMBALAGEM *CUSTO" e "TAXA/COMISAO/FRETE-MAKPLACE"
             # --------------------------------------------------------------------------
-            cols_cmp2 = ["RECEITA VENDAS ML", "RECEITA VENDAS SH", "COMPRA DE MERCADORIAS PARA REVENDA", "EMBALAGEM *CUSTO", "TAXA/COMISAO/FRETE-MAKPLACE"]
-            if set(cols_cmp2).issubset(df.columns):
-                df_cmp2 = pd.DataFrame({
-                    "Categoria": cols_cmp2,
-                    "Valor": [df[col].sum() for col in cols_cmp2]
-                })
-                fig_cmp2 = px.bar(
-                    df_cmp2,
-                    x="Categoria",
-                    y="Valor",
-                    title="Comparação 2: Vendas vs Custos e Despesas",
-                    template="plotly_dark",
-                    color="Categoria",
-                    color_discrete_sequence=px.colors.qualitative.Dark2
-                )
-                st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
-                st.plotly_chart(fig_cmp2, use_container_width=True, config={"locale": "pt-BR"})
-                st.markdown("</div>", unsafe_allow_html=True)
+            cols_cmp2 = ["receita vendas ml", "receita vendas sh", "compra de mercadorias para revenda", "embalagem *custo", "taxa/comisao/frete-makplace"]
+            if set([c.lower() for c in cols_cmp2]).issubset(set(df.columns.str.lower())):
+                valores_cmp2 = {}
+                for col in cols_cmp2:
+                    col_found = [c for c in df.columns if c.lower() == col.lower()]
+                    if col_found:
+                        valores_cmp2[col] = df[col_found[0]].sum()
+                if valores_cmp2:
+                    df_cmp2 = pd.DataFrame({
+                        "Categoria": list(valores_cmp2.keys()),
+                        "Valor": list(valores_cmp2.values())
+                    })
+                    fig_cmp2 = px.bar(
+                        df_cmp2,
+                        x="Categoria",
+                        y="Valor",
+                        title="Comparação 2: Vendas vs Custos e Despesas",
+                        template="plotly_dark",
+                        color="Categoria",
+                        color_discrete_sequence=px.colors.qualitative.Dark2
+                    )
+                    st.plotly_chart(fig_cmp2, use_container_width=True, config={"locale": "pt-BR"})
         
         # ------------------------------------------------------------------------------
         # Aba "Relatório Consolidado": Tabela e Dados Detalhados
         # ------------------------------------------------------------------------------
         with tabs[1]:
-            st.markdown("<div class='data-container'>", unsafe_allow_html=True)
-            st.subheader("Relatório Consolidado por Conta")
+            st.markdown("## Relatório Consolidado por Conta")
             relatorio = df.groupby(["ContaContabil", "Tipo_Descricao"])["Valor"].sum().reset_index()
             relatorio["Valor"] = relatorio["Valor"].apply(format_brl)
             st.dataframe(relatorio)
-            st.markdown("</div>", unsafe_allow_html=True)
             
-            st.markdown("<div class='data-container'>", unsafe_allow_html=True)
-            st.subheader("Dados Detalhados")
+            st.markdown("## Dados Detalhados")
             display_df = df.copy()
             if "MÊS_FORMATADO" in display_df.columns:
                 display_df["MÊS"] = display_df["MÊS_FORMATADO"]
@@ -351,13 +332,10 @@ if plano_file is not None and dados_file is not None:
                     total_values[col] = "Total" if col.upper() == "MÊS" else ""
             total_df = pd.DataFrame(total_values, index=["Total"])
             display_df = pd.concat([display_df, total_df])
-            display_df = display_df.applymap(
-                lambda x: "" if (isinstance(x, (int, float)) and (pd.isna(x) or x == 0))
-                else format_brl(x) if isinstance(x, (int, float))
-                else x
-            )
+            display_df = display_df.applymap(lambda x: "" if (isinstance(x, (int, float)) and (pd.isna(x) or x == 0)) 
+                                              else format_brl(x) if isinstance(x, (int, float)) 
+                                              else x)
             st.dataframe(display_df)
-            st.markdown("</div>", unsafe_allow_html=True)
             
     except Exception as e:
         st.error(f"Erro ao processar os arquivos: {e}")
