@@ -105,39 +105,52 @@ if dados_file is not None:
         else:
             df = pd.read_csv(dados_file)
         
-        # Normaliza os nomes das colunas (remove espaços e converte para minúsculas)
+        # Normaliza os nomes das colunas: remove espaços e converte para minúsculas
         df.columns = df.columns.str.strip().str.lower()
         
         # Renomeia para o padrão esperado no código
-        # Ajuste conforme os nomes reais das colunas no seu arquivo
         rename_map = {
             'codcontacontabil': 'CodContaContabil',
             'tipo': 'Tipo',
             'valor': 'Valor',
-            'mês': 'MÊS',           # Se a coluna vier como "MÊS" (minúsculo ou maiúsculo)
-            'data': 'DATA',         # Caso precise
-            'descrição': 'DESCRICAO' # Caso precise
+            'mês': 'MÊS',  # se existir coluna "MÊS"
+            'data': 'DATA',
+            'descrição': 'DESCRICAO'
         }
         for k, v in rename_map.items():
             if k in df.columns:
                 df.rename(columns={k: v}, inplace=True)
         
-        # Agora, checamos a existência das colunas necessárias
+        # Verifica a existência das colunas necessárias
         required_cols = {"CodContaContabil", "Tipo", "Valor"}
         missing_cols = required_cols - set(df.columns)
         if missing_cols:
             st.error(f"O arquivo de dados deve conter as colunas {missing_cols}.")
             st.stop()
         
-        # Checar se a coluna Tipo tem apenas D ou C
-        valores_validos = {"D", "C"}
-        # Converte a coluna "Tipo" para maiúsculo, caso venha misturado
+        # Converte a coluna "Tipo" para maiúsculas
         df["Tipo"] = df["Tipo"].astype(str).str.upper()
+        
+        # Validação de valores na coluna "Tipo"
+        valores_validos = {"D", "C"}
         if not set(df["Tipo"].unique()).issubset(valores_validos):
             st.error("A coluna 'Tipo' deve conter apenas 'D' ou 'C'.")
             st.stop()
         
-        # Processamento da data, se a coluna "MÊS" existir (agora em maiúsculo)
+        # ------------------------------------------------------------------------------
+        # Conversão da coluna Valor para numérico
+        # ------------------------------------------------------------------------------
+        # Primeiro, converte para string (caso tenha sido lido como número formatado)
+        df['Valor'] = df['Valor'].astype(str)
+        # Remove pontos de milhar e troca vírgula decimal por ponto
+        df['Valor'] = df['Valor'].str.replace('.', '', regex=False)
+        df['Valor'] = df['Valor'].str.replace(',', '.', regex=False)
+        # Converte para numérico
+        df['Valor'] = pd.to_numeric(df['Valor'], errors='coerce')
+        
+        # ------------------------------------------------------------------------------
+        # Processamento da data, se a coluna "MÊS" existir
+        # ------------------------------------------------------------------------------
         if "MÊS" in df.columns:
             df["Data"] = df["MÊS"].apply(converter_mes)
             if df["Data"].isnull().all():
@@ -157,7 +170,6 @@ if dados_file is not None:
                     start_date, end_date = date_range
                     df = df[(df["Data"].dt.date >= start_date) & (df["Data"].dt.date <= end_date)]
         else:
-            # Se não existir a coluna "MÊS", consideramos o eixo X como CodContaContabil
             x_axis = "CodContaContabil"
         
         # ------------------------------------------------------------------------------
