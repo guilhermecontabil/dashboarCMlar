@@ -62,13 +62,19 @@ if uploaded_file is not None:
         # Leitura do arquivo Excel
         df = pd.read_excel(uploaded_file)
         
-        # Verifica e ajusta a coluna de data
-        if "Data" not in df.columns:
-            if "Data Movimento" in df.columns:
-                df.rename(columns={"Data Movimento": "Data"}, inplace=True)
-            else:
-                st.error("Coluna de data não encontrada. Verifique o arquivo.")
-                st.stop()
+        # Procura automaticamente por uma coluna que contenha "data" no nome
+        data_col = None
+        for col in df.columns:
+            if "data" in col.lower():
+                data_col = col
+                break
+        
+        if data_col is None:
+            st.error("Coluna de data não encontrada. Verifique o arquivo.")
+            st.stop()
+        else:
+            # Renomeia a coluna encontrada para "Data"
+            df.rename(columns={data_col: "Data"}, inplace=True)
         
         # Converte a coluna de data (formato DD/MM/YYYY)
         df["Data"] = pd.to_datetime(df["Data"], dayfirst=True, errors="coerce")
@@ -95,7 +101,7 @@ if uploaded_file is not None:
             selected_categorias = st.sidebar.multiselect("Selecione as categorias:", categorias, default=categorias)
             df = df[df["Descricao"].isin(selected_categorias)]
         
-        # Nova funcionalidade: Cards de métricas
+        # Cards de métricas
         st.markdown("## Resumo Geral")
         with st.container():
             col1, col2, col3 = st.columns(3)
