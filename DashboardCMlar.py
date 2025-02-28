@@ -3,82 +3,85 @@ import pandas as pd
 import plotly.express as px
 import streamlit.components.v1 as components
 
-st.set_page_config(page_title="Novo Dashboard", layout="wide")
+# Configuração da página
+st.set_page_config(page_title="Dashboard Movimento - Atualizado", layout="wide")
 
-# Exemplo de dicionário de códigos -> descrições
-codigo_para_descricao = {
-    111: "Aluguel",
-    112: "Assessorias e associações",
-    113: "Cartório",
-    # ...
-    211: "Vendas de produtos",
-    212: "Vendas no balcão",
-    # ...
-}
-
-# Função para formatar valores no padrão BR
-def format_brl(x):
-    try:
-        if pd.isna(x) or (isinstance(x, (int, float)) and x == 0):
-            return ""
-        return format(x, ",.2f").replace(",", "X").replace(".", ",").replace("X", ".")
-    except:
-        return x
-
-# Cabeçalho / CSS
+# Custom CSS para estilos
 st.markdown(
     """
     <style>
-    /* Estilos de exemplo */
+    @import url('https://fonts.googleapis.com/css2?family=Roboto&display=swap');
+    html, body, [class*="css"] {
+        font-family: 'Roboto', sans-serif;
+    }
     .header {
         text-align: center;
-        padding: 30px;
+        padding: 20px;
         background: linear-gradient(135deg, #6a11cb, #2575fc);
         color: white;
         border-radius: 10px;
         margin-bottom: 20px;
     }
+    .chart-container, .data-container, .metrics-container {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
     </style>
     """, unsafe_allow_html=True
 )
 
+# Cabeçalho com HTML customizado
 components.html(
     """
     <div class="header">
-        <h1>Novo Dashboard</h1>
-        <p>Exemplo de Dashboard com Códigos e Descrições</p>
+        <h1>Dashboard Movimento - Atualizado</h1>
+        <p>Análise detalhada dos dados do arquivo de movimento</p>
     </div>
-    """,
-    height=150
+    """, height=150
 )
 
-# Sidebar para upload
+# Sidebar: upload e filtros
 st.sidebar.markdown("## Filtros de Dados")
 uploaded_file = st.sidebar.file_uploader("Selecione o arquivo XLSX", type=["xlsx"])
 
+# Exemplo de dicionário para mapear códigos a descrições (adicione conforme necessário)
+codigo_para_descricao = {
+    111: "Aluguel",
+    112: "Assessorias e associações",
+    113: "Cartório",
+    # ... inclua demais mapeamentos
+    211: "Vendas de produtos",
+    212: "Vendas no balcão",
+}
+
 if uploaded_file is not None:
     try:
-        # Leitura do Excel
+        # Leitura do arquivo Excel
         df = pd.read_excel(uploaded_file)
-
-        # Ajuste de nomes de colunas, se necessário
-        # Vamos assumir que as colunas estão nomeadas como: "Data", "Codigo", "Valor"
-        # Se forem diferentes, renomeie: df.rename(columns={"MÊS": "Data", ...}, inplace=True)
-
-        # Converte coluna Data (caso esteja em formato string)
-        # Se precisar de parsing específico, use to_datetime com format ou errors='coerce'
-        df["Data"] = pd.to_datetime(df["Data"], errors='coerce')
         
-        # Remove linhas sem data válida
-        df = df[df["Data"].notnull()]
-
-        # Ordena pelo campo de data
+        # Verifica e ajusta a coluna de data
+        if "Data" not in df.columns:
+            if "Data Movimento" in df.columns:
+                df.rename(columns={"Data Movimento": "Data"}, inplace=True)
+            else:
+                st.error("Coluna de data não encontrada. Verifique o arquivo.")
+                st.stop()
+        
+        # Converte a coluna de data (formato DD/MM/YYYY)
+        df["Data"] = pd.to_datetime(df["Data"], dayfirst=True, errors="coerce")
+        df = df[df["Data"].notnull()]  # Remove linhas com data inválida
         df.sort_values("Data", inplace=True)
-
-        # Mapeia o código para descrição
-        df["Descricao"] = df["Codigo"].map(codigo_para_descricao).fillna("Código Desconhecido")
-
-        # Filtro de intervalo de datas
+        
+        # Mapeia a coluna "Codigo" para "Descricao", se existir; caso contrário, espera que a coluna "Descricao" já exista
+        if "Codigo" in df.columns:
+            df["Descricao"] = df["Codigo"].map(codigo_para_descricao).fillna("Código Desconhecido")
+        elif "Descricao" not in df.columns:
+            st.warning("Nenhuma coluna 'Codigo' ou 'Descricao' encontrada. As categorias não poderão ser filtradas.")
+        
+        # Filtro de datas na sidebar
         min_date = df["Data"].min().date()
         max_date = df["Data"].max().date()
         date_range = st.sidebar.date_input("Selecione o intervalo de datas", [min_date, max_date])
@@ -86,69 +89,61 @@ if uploaded_file is not None:
             start_date, end_date = date_range
             df = df[(df["Data"].dt.date >= start_date) & (df["Data"].dt.date <= end_date)]
         
-        # Agora selecionamos quais categorias (descrições) queremos ver nos gráficos
-        todas_categorias = sorted(df["Descricao"].unique())
-        selected_categorias = st.sidebar.multiselect("Selecione as categorias (códigos):", 
-                                                    todas_categorias, 
-                                                    default=todas_categorias)
-
-        # Filtra o DataFrame pelas categorias selecionadas
-        df_filtered = df[df["Descricao"].isin(selected_categorias)]
-
-        # Cria abas
+        # Filtro de categoria (descrição) se existir
+        if "Descricao" in df.columns:
+            categorias = sorted(df["Descricao"].unique())
+            selected_categorias = st.sidebar.multiselect("Selecione as categorias:", categorias, default=categorias)
+            df = df[df["Descricao"].isin(selected_categorias)]
+        
+        # Nova funcionalidade: Cards de métricas
+        st.markdown("## Resumo Geral")
+        with st.container():
+            col1, col2, col3 = st.columns(3)
+            total_valor = df["Valor"].sum() if "Valor" in df.columns else 0
+            total_registros = df.shape[0]
+            media_valor = df["Valor"].mean() if "Valor" in df.columns and total_registros > 0 else 0
+            
+            col1.metric("Total Valor", f"R$ {total_valor:,.2f}")
+            col2.metric("Total Registros", total_registros)
+            col3.metric("Média Valor", f"R$ {media_valor:,.2f}")
+        
+        # Cria abas para Dashboard e Visualização dos Dados
         tabs = st.tabs(["Dashboard", "Visualização dos Dados"])
         
+        # Aba "Dashboard" com gráficos
         with tabs[0]:
-            st.markdown("## Gráficos")
-            # Exemplo: agrupar por data e descrição para somar valores
-            # (Dependendo da sua necessidade, você pode fazer pivot para ter uma curva por categoria)
+            # Gráfico de linha: Evolução do Valor ao longo do tempo
+            if "Valor" in df.columns:
+                fig_line = px.line(df, x="Data", y="Valor", title="Evolução do Valor ao longo do Tempo",
+                                   markers=True, template="plotly_white")
+                fig_line.update_yaxes(tickformat=",.2f", exponentformat="none")
+                fig_line.update_traces(hovertemplate="%{y:,.2f}")
+                st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
+                st.plotly_chart(fig_line, use_container_width=True, config={"locale": "pt-BR"})
+                st.markdown("</div>", unsafe_allow_html=True)
+            else:
+                st.warning("Coluna 'Valor' não encontrada para gerar gráfico de linha.")
             
-            # Vamos fazer um pivot para plotar linhas empilhadas ou sobrepostas
-            if not df_filtered.empty:
-                pivot_df = df_filtered.pivot_table(
-                    index="Data",
-                    columns="Descricao",
-                    values="Valor",
-                    aggfunc="sum"
-                ).fillna(0)
-
-                # Gráfico de linha com Plotly
-                fig = px.line(
-                    pivot_df,
-                    x=pivot_df.index,
-                    y=pivot_df.columns,
-                    title="Evolução das Categorias Selecionadas",
-                    markers=True,
-                    template="plotly_white"
-                )
-                # Ajusta formatação do eixo Y
-                fig.update_yaxes(tickformat=",.2f", exponentformat="none")
-                # Ajusta tooltip
-                fig.update_traces(hovertemplate="%{y:,.2f}")
-                st.plotly_chart(fig, use_container_width=True, config={"locale": "pt-BR"})
-            else:
-                st.warning("Não há dados para as categorias selecionadas neste intervalo.")
-
+            # Gráfico de barras: Valor agregado por categoria
+            if "Descricao" in df.columns and "Valor" in df.columns:
+                df_agg = df.groupby("Descricao", as_index=False)["Valor"].sum()
+                fig_bar = px.bar(df_agg, x="Descricao", y="Valor", title="Valor Total por Categoria",
+                                 template="plotly_white")
+                fig_bar.update_yaxes(tickformat=",.2f", exponentformat="none")
+                fig_bar.update_traces(hovertemplate="%{y:,.2f}")
+                st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
+                st.plotly_chart(fig_bar, use_container_width=True, config={"locale": "pt-BR"})
+                st.markdown("</div>", unsafe_allow_html=True)
+        
+        # Aba "Visualização dos Dados" com a tabela
         with tabs[1]:
-            st.markdown("## Tabela de Dados")
-            # Exibe tabela
-            if not df_filtered.empty:
-                # Para exibir os valores formatados
-                display_df = df_filtered.copy()
-                # Você pode agrupar por Data e Descrição para mostrar o total
-                # ou simplesmente mostrar linha a linha
-                
-                # Exemplo: agrupar por Data, Descrição e somar Valor
-                grouped_df = display_df.groupby(["Data","Descricao"], as_index=False)["Valor"].sum()
-                # Formata
-                grouped_df["Valor"] = grouped_df["Valor"].apply(format_brl)
-                
-                st.dataframe(grouped_df)
-            else:
-                st.warning("Não há dados para exibir na tabela.")
-
+            st.markdown("<div class='data-container'>", unsafe_allow_html=True)
+            st.subheader("Tabela de Dados")
+            st.dataframe(df)
+            st.markdown("</div>", unsafe_allow_html=True)
+        
     except Exception as e:
-        st.error(f"Erro ao processar o arquivo: {e}")
+        st.error(f"Ocorreu um erro ao processar o arquivo: {e}")
 else:
-    st.sidebar.info("Aguardando o upload de um arquivo XLSX.")
+    st.sidebar.info("Aguardando o upload do arquivo XLSX.")
     st.info("Utilize a barra lateral para carregar o arquivo e configurar os filtros.")
