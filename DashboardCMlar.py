@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import streamlit.components.v1 as components
+import traceback
 
 # ------------------------------------------------------------------------------
 # Configuração da página
@@ -72,11 +73,11 @@ def format_brl(x):
         if pd.isna(x) or (isinstance(x, (int, float)) and x == 0):
             return ""
         return format(x, ",.2f").replace(",", "X").replace(".", ",").replace("X", ".")
-    except Exception as e:
+    except Exception:
         return x
 
 # ------------------------------------------------------------------------------
-# Plano de Contas embutido (você pode alterar esse DataFrame conforme necessário)
+# Plano de Contas embutido (ajuste conforme a sua necessidade)
 # ------------------------------------------------------------------------------
 default_plano = {
     "CodContaContabil": [1001, 2001, 3001, 4001],
@@ -88,11 +89,10 @@ default_plano = {
     ]
 }
 df_plano = pd.DataFrame(default_plano)
-# Limpa os nomes das colunas (remove espaços, caixa padrão)
-df_plano.columns = df_plano.columns.str.strip()
+df_plano.columns = df_plano.columns.str.strip()  # Limpa espaços nos nomes das colunas
 
 # ------------------------------------------------------------------------------
-# Sidebar: Upload do arquivo de Dados Financeiros e filtros
+# Sidebar: Upload do arquivo de Dados Financeiros
 # ------------------------------------------------------------------------------
 st.sidebar.markdown("## Upload do Arquivo de Dados Financeiros")
 dados_file = st.sidebar.file_uploader("Selecione o arquivo de Dados Financeiros (XLSX ou CSV)", type=["xlsx", "csv"], key="dados")
@@ -105,15 +105,39 @@ if dados_file is not None:
         else:
             df = pd.read_csv(dados_file)
         
-        # Limpa os nomes das colunas removendo espaços extras
-        df.columns = df.columns.str.strip()
+        # Normaliza os nomes das colunas (remove espaços e converte para minúsculas)
+        df.columns = df.columns.str.strip().str.lower()
         
-        # Valida a existência das colunas necessárias
-        if not {"CodContaContabil", "Tipo", "Valor"}.issubset(df.columns):
-            st.error("O arquivo de dados deve conter as colunas 'CodContaContabil', 'Tipo' (D ou C) e 'Valor'.")
+        # Renomeia para o padrão esperado no código
+        # Ajuste conforme os nomes reais das colunas no seu arquivo
+        rename_map = {
+            'codcontacontabil': 'CodContaContabil',
+            'tipo': 'Tipo',
+            'valor': 'Valor',
+            'mês': 'MÊS',           # Se a coluna vier como "MÊS" (minúsculo ou maiúsculo)
+            'data': 'DATA',         # Caso precise
+            'descrição': 'DESCRICAO' # Caso precise
+        }
+        for k, v in rename_map.items():
+            if k in df.columns:
+                df.rename(columns={k: v}, inplace=True)
+        
+        # Agora, checamos a existência das colunas necessárias
+        required_cols = {"CodContaContabil", "Tipo", "Valor"}
+        missing_cols = required_cols - set(df.columns)
+        if missing_cols:
+            st.error(f"O arquivo de dados deve conter as colunas {missing_cols}.")
             st.stop()
         
-        # Processamento da data, se disponível
+        # Checar se a coluna Tipo tem apenas D ou C
+        valores_validos = {"D", "C"}
+        # Converte a coluna "Tipo" para maiúsculo, caso venha misturado
+        df["Tipo"] = df["Tipo"].astype(str).str.upper()
+        if not set(df["Tipo"].unique()).issubset(valores_validos):
+            st.error("A coluna 'Tipo' deve conter apenas 'D' ou 'C'.")
+            st.stop()
+        
+        # Processamento da data, se a coluna "MÊS" existir (agora em maiúsculo)
         if "MÊS" in df.columns:
             df["Data"] = df["MÊS"].apply(converter_mes)
             if df["Data"].isnull().all():
@@ -133,12 +157,18 @@ if dados_file is not None:
                     start_date, end_date = date_range
                     df = df[(df["Data"].dt.date >= start_date) & (df["Data"].dt.date <= end_date)]
         else:
+            # Se não existir a coluna "MÊS", consideramos o eixo X como CodContaContabil
             x_axis = "CodContaContabil"
         
         # ------------------------------------------------------------------------------
         # Merge: Correlaciona os dados financeiros com o Plano de Contas embutido
         # ------------------------------------------------------------------------------
-        df = pd.merge(df, df_plano[["CodContaContabil", "ContaContabil"]], on="CodContaContabil", how="left")
+        df = pd.merge(
+            df, 
+            df_plano[["CodContaContabil", "ContaContabil"]],
+            on="CodContaContabil",
+            how="left"
+        )
         
         # Mapeia o tipo de lançamento: "D" para Despesa e "C" para Receita
         df['Tipo_Descricao'] = df['Tipo'].map({'D': 'Despesa', 'C': 'Receita'})
@@ -171,7 +201,10 @@ if dados_file is not None:
                 # Agrupa por data e tipo de lançamento
                 df_line = df_line.groupby([x_axis, 'Tipo_Descricao'])['Valor'].sum().reset_index()
                 fig_line = px.line(
-                    df_line, x=x_axis, y="Valor", color="Tipo_Descricao",
+                    df_line,
+                    x=x_axis,
+                    y="Valor",
+                    color="Tipo_Descricao",
                     title="Evolução de Receitas e Despesas",
                     markers=True,
                     template="plotly_white"
@@ -188,7 +221,9 @@ if dados_file is not None:
                 "Valor": [total_receita, total_despesa]
             })
             fig_pie = px.pie(
-                df_pie, values="Valor", names="Categoria",
+                df_pie,
+                values="Valor",
+                names="Categoria",
                 title="Proporção de Receitas vs Despesas",
                 template="plotly_white"
             )
@@ -202,6 +237,7 @@ if dados_file is not None:
         with tabs[1]:
             st.markdown("<div class='data-container'>", unsafe_allow_html=True)
             st.subheader("Relatório Consolidado por Conta")
+            
             # Agrupa os dados por conta e tipo de lançamento, somando os valores
             relatorio = df.groupby(["ContaContabil", "Tipo_Descricao"])["Valor"].sum().reset_index()
             relatorio["Valor"] = relatorio["Valor"].apply(format_brl)
@@ -211,14 +247,17 @@ if dados_file is not None:
             # Exibe os dados detalhados com o merge efetuado
             st.markdown("<div class='data-container'>", unsafe_allow_html=True)
             st.subheader("Dados Detalhados")
+            
             display_df = df.copy()
             # Se existir a coluna de data formatada, usa para exibição
             if "MÊS_FORMATADO" in display_df.columns:
                 display_df["MÊS"] = display_df["MÊS_FORMATADO"]
+            
             # Remove colunas auxiliares
             for col_to_drop in ["Data", "MÊS_FORMATADO"]:
                 if col_to_drop in display_df.columns:
                     display_df.drop(col_to_drop, axis=1, inplace=True)
+            
             # Adiciona uma linha total para colunas numéricas
             total_values = {}
             for col in display_df.columns:
@@ -228,15 +267,17 @@ if dados_file is not None:
                     total_values[col] = "Total" if col.upper() == "MÊS" else ""
             total_df = pd.DataFrame(total_values, index=["Total"])
             display_df = pd.concat([display_df, total_df])
+            
             # Aplica formatação BR
-            display_df = display_df.applymap(lambda x: "" if (isinstance(x, (int, float)) and (pd.isna(x) or x == 0))
-                                             else format_brl(x) if isinstance(x, (int, float))
-                                             else x)
+            display_df = display_df.applymap(
+                lambda x: "" if (isinstance(x, (int, float)) and (pd.isna(x) or x == 0))
+                else format_brl(x) if isinstance(x, (int, float))
+                else x
+            )
             st.dataframe(display_df)
             st.markdown("</div>", unsafe_allow_html=True)
             
     except Exception as e:
-        import traceback
         st.error(f"Erro ao processar o arquivo: {e}")
         st.text(traceback.format_exc())
 else:
