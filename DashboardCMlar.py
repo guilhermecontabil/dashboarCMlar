@@ -47,7 +47,7 @@ components.html(
     """
     <div class="header">
         <h1>Dashboard Fiscal Avançada</h1>
-        <p>Integre e analise seus dados financeiros correlacionando com o Plano de Contas</p>
+        <p>Integre e analise seus dados financeiros com um Plano de Contas embutido</p>
     </div>
     """, 
     height=150
@@ -72,44 +72,45 @@ def format_brl(x):
         if pd.isna(x) or (isinstance(x, (int, float)) and x == 0):
             return ""
         return format(x, ",.2f").replace(",", "X").replace(".", ",").replace("X", ".")
-    except:
+    except Exception as e:
         return x
 
 # ------------------------------------------------------------------------------
-# Sidebar: Upload dos arquivos e filtros
+# Plano de Contas embutido (você pode alterar esse DataFrame conforme necessário)
 # ------------------------------------------------------------------------------
-st.sidebar.markdown("## Upload dos Arquivos")
+default_plano = {
+    "CodContaContabil": [1001, 2001, 3001, 4001],
+    "ContaContabil": [
+        "Receita de Vendas",
+        "Despesa Administrativa",
+        "Despesa Operacional",
+        "Outras Receitas"
+    ]
+}
+df_plano = pd.DataFrame(default_plano)
+# Limpa os nomes das colunas (remove espaços, caixa padrão)
+df_plano.columns = df_plano.columns.str.strip()
 
-# Upload do Plano de Contas
-plano_file = st.sidebar.file_uploader("Arquivo do Plano de Contas (XLSX ou CSV)", type=["xlsx", "csv"], key="plano")
-# Upload do arquivo de Dados Financeiros
-dados_file = st.sidebar.file_uploader("Arquivo de Dados Financeiros (XLSX ou CSV)", type=["xlsx", "csv"], key="dados")
+# ------------------------------------------------------------------------------
+# Sidebar: Upload do arquivo de Dados Financeiros e filtros
+# ------------------------------------------------------------------------------
+st.sidebar.markdown("## Upload do Arquivo de Dados Financeiros")
+dados_file = st.sidebar.file_uploader("Selecione o arquivo de Dados Financeiros (XLSX ou CSV)", type=["xlsx", "csv"], key="dados")
 
-if plano_file is not None and dados_file is not None:
+if dados_file is not None:
     try:
-        # Leitura do Plano de Contas
-        if plano_file.name.endswith('.xlsx'):
-            df_plano = pd.read_excel(plano_file)
-        else:
-            df_plano = pd.read_csv(plano_file)
-        
-        # Validação do Plano de Contas
-        if not {"CodContaContabil", "ContaContabil"}.issubset(df_plano.columns):
-            st.error("O arquivo do Plano de Contas deve conter as colunas 'CodContaContabil' e 'ContaContabil'.")
-            st.stop()
-        
         # Leitura do arquivo de Dados Financeiros
         if dados_file.name.endswith('.xlsx'):
             df = pd.read_excel(dados_file)
         else:
             df = pd.read_csv(dados_file)
         
-        # Validação do arquivo de dados
-        if "CodContaContabil" not in df.columns:
-            st.error("A coluna 'CodContaContabil' não foi encontrada no arquivo de dados.")
-            st.stop()
-        if "Tipo" not in df.columns or "Valor" not in df.columns:
-            st.error("O arquivo de dados deve conter as colunas 'Tipo' (D ou C) e 'Valor'.")
+        # Limpa os nomes das colunas removendo espaços extras
+        df.columns = df.columns.str.strip()
+        
+        # Valida a existência das colunas necessárias
+        if not {"CodContaContabil", "Tipo", "Valor"}.issubset(df.columns):
+            st.error("O arquivo de dados deve conter as colunas 'CodContaContabil', 'Tipo' (D ou C) e 'Valor'.")
             st.stop()
         
         # Processamento da data, se disponível
@@ -135,7 +136,7 @@ if plano_file is not None and dados_file is not None:
             x_axis = "CodContaContabil"
         
         # ------------------------------------------------------------------------------
-        # Merge: Correlaciona o arquivo de dados com o Plano de Contas
+        # Merge: Correlaciona os dados financeiros com o Plano de Contas embutido
         # ------------------------------------------------------------------------------
         df = pd.merge(df, df_plano[["CodContaContabil", "ContaContabil"]], on="CodContaContabil", how="left")
         
@@ -235,7 +236,9 @@ if plano_file is not None and dados_file is not None:
             st.markdown("</div>", unsafe_allow_html=True)
             
     except Exception as e:
-        st.error(f"Erro ao processar os arquivos: {e}")
+        import traceback
+        st.error(f"Erro ao processar o arquivo: {e}")
+        st.text(traceback.format_exc())
 else:
-    st.sidebar.info("Aguardando o upload dos arquivos do Plano de Contas e Dados Financeiros.")
-    st.info("Utilize a barra lateral para carregar os arquivos e configurar os filtros.")
+    st.sidebar.info("Aguardando o upload do arquivo de Dados Financeiros.")
+    st.info("Utilize a barra lateral para carregar o arquivo e configurar os filtros.")
