@@ -7,10 +7,10 @@ import traceback
 # ------------------------------------------------------------------------------
 # Configuração da Página
 # ------------------------------------------------------------------------------
-st.set_page_config(page_title="Dashboard Fiscal Avançada", layout="wide")
+st.set_page_config(page_title="Dashboard Financeiro", layout="wide")
 
 # ------------------------------------------------------------------------------
-# CSS Customizado
+# CSS Customizado para Dark Mode
 # ------------------------------------------------------------------------------
 st.markdown(
     """
@@ -18,24 +18,26 @@ st.markdown(
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&family=Roboto&display=swap');
     html, body, [class*="css"]  {
         font-family: 'Roboto', sans-serif;
+        background-color: #121212;
+        color: #e0e0e0;
     }
     .main {
-        background: #f0f2f6;
+        background: #121212;
     }
     .header {
         text-align: center;
         padding: 30px;
-        background: linear-gradient(135deg, #6a11cb, #2575fc);
-        color: white;
+        background: linear-gradient(135deg, #1f1f1f, #2c2c2c);
+        color: #e0e0e0;
         border-radius: 10px;
         margin-bottom: 20px;
     }
     .chart-container, .data-container {
-        background: white;
+        background: #1e1e1e;
         padding: 20px;
         border-radius: 8px;
         margin-bottom: 20px;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.3);
     }
     </style>
     """, unsafe_allow_html=True
@@ -47,7 +49,7 @@ st.markdown(
 components.html(
     """
     <div class="header">
-        <h1>Dashboard Fiscal Avançada</h1>
+        <h1>Dashboard Financeiro</h1>
         <p>Correlacione seus lançamentos com o Plano de Contas para análise aprofundada</p>
     </div>
     """, height=150
@@ -81,9 +83,9 @@ def format_brl(x):
 st.sidebar.markdown("## Upload dos Arquivos")
 
 # Upload do Plano de Contas
-plano_file = st.sidebar.file_uploader("Selecione o arquivo do Plano de Contas (XLSX ou CSV)", type=["xlsx", "csv"], key="plano")
+plano_file = st.sidebar.file_uploader("Carregar arquivo do Plano de Contas (XLSX ou CSV)", type=["xlsx", "csv"], key="plano")
 # Upload dos Dados Financeiros
-dados_file = st.sidebar.file_uploader("Selecione o arquivo de Dados Financeiros (XLSX ou CSV)", type=["xlsx", "csv"], key="dados")
+dados_file = st.sidebar.file_uploader("Carregar arquivo de Dados Financeiros (XLSX ou CSV)", type=["xlsx", "csv"], key="dados")
 
 if plano_file is not None and dados_file is not None:
     try:
@@ -95,7 +97,6 @@ if plano_file is not None and dados_file is not None:
         else:
             df_plano = pd.read_csv(plano_file)
         
-        # Normaliza os nomes das colunas do plano e renomeia
         df_plano.columns = df_plano.columns.str.strip().str.lower()
         rename_map_plano = {
             'codcontacontabil': 'CodContaContabil',
@@ -124,7 +125,7 @@ if plano_file is not None and dados_file is not None:
             'codcontacontabil': 'CodContaContabil',
             'tipo': 'Tipo',
             'valor': 'Valor',
-            'mês': 'MÊS',  
+            'mês': 'MÊS',
             'data': 'DATA',
             'descrição': 'DESCRICAO'
         }
@@ -195,7 +196,7 @@ if plano_file is not None and dados_file is not None:
         df = df[df["ContaContabil"].isin(contas_selecionadas)]
         
         # ------------------------------------------------------------------------------
-        # Mapeamento do Tipo: "D" para Despesa e "C" para Receita
+        # Mapeamento do Tipo: "D" para Despesa, "C" para Receita
         # ------------------------------------------------------------------------------
         df['Tipo_Descricao'] = df['Tipo'].map({'D': 'Despesa', 'C': 'Receita'})
         
@@ -213,10 +214,10 @@ if plano_file is not None and dados_file is not None:
         # ------------------------------------------------------------------------------
         # Criação de Abas: Dashboard e Relatório Consolidado
         # ------------------------------------------------------------------------------
-        tabs = st.tabs(["Dashboard", "Relatório Consolidado"])
+        tabs = st.tabs(["Dashboard Financeiro", "Relatório Consolidado"])
         
         # ------------------------------------------------------------------------------
-        # Aba "Dashboard": Métricas e Gráficos para Análise
+        # Aba "Dashboard Financeiro": Métricas e Gráficos para Análise
         # ------------------------------------------------------------------------------
         with tabs[0]:
             st.markdown("## Métricas Gerais")
@@ -228,7 +229,6 @@ if plano_file is not None and dados_file is not None:
             st.markdown("### Análise Temporal por Conta")
             if x_axis in ["Data", "MÊS"]:
                 df_line = df.copy()
-                # Gráfico de linhas: evolução dos lançamentos por conta
                 df_line = df_line.groupby([x_axis, "ContaContabil"])["Valor"].sum().reset_index()
                 fig_line = px.line(
                     df_line,
@@ -237,7 +237,7 @@ if plano_file is not None and dados_file is not None:
                     color="ContaContabil",
                     title="Evolução dos Lançamentos por Conta",
                     markers=True,
-                    template="plotly_white"
+                    template="plotly_dark"
                 )
                 fig_line.update_yaxes(tickformat=',.2f', exponentformat='none')
                 fig_line.update_traces(hovertemplate='%{y:,.2f}')
@@ -252,14 +252,13 @@ if plano_file is not None and dados_file is not None:
                 x="ContaContabil",
                 y="Valor",
                 title="Total de Lançamentos por Conta",
-                template="plotly_white"
+                template="plotly_dark"
             )
             st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
             st.plotly_chart(fig_bar, use_container_width=True, config={"locale": "pt-BR"})
             st.markdown("</div>", unsafe_allow_html=True)
             
             st.markdown("### Comparação entre Receitas e Despesas por Conta")
-            # Gráfico de barras agrupadas: receitas e despesas por conta
             df_comparativo = df.groupby(["ContaContabil", "Tipo_Descricao"])["Valor"].sum().reset_index()
             fig_comp = px.bar(
                 df_comparativo,
@@ -268,11 +267,62 @@ if plano_file is not None and dados_file is not None:
                 color="Tipo_Descricao",
                 barmode="group",
                 title="Receitas vs Despesas por Conta",
-                template="plotly_white"
+                template="plotly_dark"
             )
             st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
             st.plotly_chart(fig_comp, use_container_width=True, config={"locale": "pt-BR"})
             st.markdown("</div>", unsafe_allow_html=True)
+            
+            # --------------------------------------------------------------------------
+            # Novo Gráfico: Comparação 1
+            # Compara "RECEITA VENDAS ML", "RECEITA VENDAS SH" e "IMPOSTOS - DAS SIMPLES NACIONAL"
+            # --------------------------------------------------------------------------
+            cols_cmp1 = ["RECEITA VENDAS ML", "RECEITA VENDAS SH", "IMPOSTOS - DAS SIMPLES NACIONAL"]
+            if set(cols_cmp1).issubset(df.columns):
+                df_cmp1 = pd.DataFrame({
+                    "Categoria": cols_cmp1,
+                    "Valor": [df[col].sum() for col in cols_cmp1]
+                })
+                fig_cmp1 = px.bar(
+                    df_cmp1,
+                    x="Categoria",
+                    y="Valor",
+                    title="Comparação 1: Vendas vs Impostos Simples Nacional",
+                    template="plotly_dark",
+                    color="Categoria",
+                    color_discrete_map={
+                        "RECEITA VENDAS ML": "#1f77b4",
+                        "RECEITA VENDAS SH": "#ff7f0e",
+                        "IMPOSTOS - DAS SIMPLES NACIONAL": "#2ca02c"
+                    }
+                )
+                st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
+                st.plotly_chart(fig_cmp1, use_container_width=True, config={"locale": "pt-BR"})
+                st.markdown("</div>", unsafe_allow_html=True)
+            
+            # --------------------------------------------------------------------------
+            # Novo Gráfico: Comparação 2
+            # Compara "RECEITA VENDAS ML", "RECEITA VENDAS SH" com "COMPRA DE MERCADORIAS PARA REVENDA",
+            # "EMBALAGEM *CUSTO" e "TAXA/COMISAO/FRETE-MAKPLACE"
+            # --------------------------------------------------------------------------
+            cols_cmp2 = ["RECEITA VENDAS ML", "RECEITA VENDAS SH", "COMPRA DE MERCADORIAS PARA REVENDA", "EMBALAGEM *CUSTO", "TAXA/COMISAO/FRETE-MAKPLACE"]
+            if set(cols_cmp2).issubset(df.columns):
+                df_cmp2 = pd.DataFrame({
+                    "Categoria": cols_cmp2,
+                    "Valor": [df[col].sum() for col in cols_cmp2]
+                })
+                fig_cmp2 = px.bar(
+                    df_cmp2,
+                    x="Categoria",
+                    y="Valor",
+                    title="Comparação 2: Vendas vs Custos e Despesas",
+                    template="plotly_dark",
+                    color="Categoria",
+                    color_discrete_sequence=px.colors.qualitative.Dark2
+                )
+                st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
+                st.plotly_chart(fig_cmp2, use_container_width=True, config={"locale": "pt-BR"})
+                st.markdown("</div>", unsafe_allow_html=True)
         
         # ------------------------------------------------------------------------------
         # Aba "Relatório Consolidado": Tabela e Dados Detalhados
