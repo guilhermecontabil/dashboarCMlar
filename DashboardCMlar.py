@@ -1,38 +1,39 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import streamlit.components.v1 as components
 import traceback
 
 # ------------------------------------------------------------------------------
-# Configuração da Página
+# Configuração da página
 # ------------------------------------------------------------------------------
 st.set_page_config(page_title="Dashboard Financeiro", layout="wide")
 
 # ------------------------------------------------------------------------------
-# CSS Customizado para Dark Mode
+# CSS customizado para Dark Mode
 # ------------------------------------------------------------------------------
 st.markdown(
     """
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&family=Roboto&display=swap');
-    html, body, [class*="css"]  {
+    /* Fonte e fundo escuro */
+    @import url('https://fonts.googleapis.com/css2?family=Roboto&display=swap');
+    html, body, [class*="css"] {
         font-family: 'Roboto', sans-serif;
         background-color: #121212;
         color: #e0e0e0;
     }
     .main {
-        background: #121212;
+        background-color: #121212;
     }
-    .header {
+    /* Título */
+    .titulo {
         text-align: center;
-        padding: 30px;
-        background: linear-gradient(135deg, #1f1f1f, #2c2c2c);
-        color: #e0e0e0;
-        border-radius: 10px;
+        padding: 20px;
+        background: #1f1f1f;
+        border-radius: 8px;
         margin-bottom: 20px;
     }
-    .chart-container, .data-container {
+    /* Containers dos gráficos e tabelas */
+    .container {
         background: #1e1e1e;
         padding: 20px;
         border-radius: 8px;
@@ -40,306 +41,150 @@ st.markdown(
         box-shadow: 0 4px 8px rgba(0,0,0,0.3);
     }
     </style>
-    """, unsafe_allow_html=True
+    """,
+    unsafe_allow_html=True
 )
 
 # ------------------------------------------------------------------------------
-# Header Customizado
+# Título
 # ------------------------------------------------------------------------------
-components.html(
-    """
-    <div class="header">
-        <h1>Dashboard Financeiro</h1>
-        <p>Correlacione seus lançamentos com o Plano de Contas para análise aprofundada</p>
-    </div>
-    """, height=150
-)
+st.markdown("<div class='titulo'><h1>Dashboard Financeiro</h1></div>", unsafe_allow_html=True)
 
 # ------------------------------------------------------------------------------
-# Funções Auxiliares
+# Barra Lateral: Upload dos arquivos
 # ------------------------------------------------------------------------------
-def converter_mes(valor):
-    """Tenta converter a coluna de mês para datetime utilizando vários formatos."""
-    formatos = ["%Y-%m", "%m/%Y", "%B %Y", "%b %Y"]
-    for fmt in formatos:
-        try:
-            return pd.to_datetime(valor, format=fmt)
-        except (ValueError, TypeError):
-            continue
-    return pd.NaT
+st.sidebar.title("Uploads")
 
-def format_brl(x):
-    """Formata números para o padrão BR (ponto para milhar e vírgula para decimal)."""
+plano_file = st.sidebar.file_uploader("Carregar arquivo do Plano de Contas (XLSX ou CSV)", type=["xlsx", "csv"])
+dados_file = st.sidebar.file_uploader("Carregar arquivo de Dados Financeiros (XLSX ou CSV)", type=["xlsx", "csv"])
+
+if plano_file and dados_file:
     try:
-        if pd.isna(x) or (isinstance(x, (int, float)) and x == 0):
-            return ""
-        return format(x, ",.2f").replace(",", "X").replace(".", ",").replace("X", ".")
-    except Exception:
-        return x
-
-# ------------------------------------------------------------------------------
-# Sidebar: Upload dos Arquivos (em Português)
-# ------------------------------------------------------------------------------
-st.sidebar.markdown("## Upload dos Arquivos")
-plano_file = st.sidebar.file_uploader("Carregar arquivo do Plano de Contas (XLSX ou CSV)", type=["xlsx", "csv"], key="plano")
-dados_file = st.sidebar.file_uploader("Carregar arquivo de Dados Financeiros (XLSX ou CSV)", type=["xlsx", "csv"], key="dados")
-
-if plano_file is not None and dados_file is not None:
-    try:
-        # ------------------------------------------------------------------------------
-        # Leitura do Plano de Contas
-        # ------------------------------------------------------------------------------
-        if plano_file.name.endswith('.xlsx'):
+        # =======================================================================
+        # 1. Leitura e tratamento do Plano de Contas
+        # =======================================================================
+        if plano_file.name.endswith(".xlsx"):
             df_plano = pd.read_excel(plano_file)
         else:
             df_plano = pd.read_csv(plano_file)
-        # Normaliza os nomes das colunas e renomeia
+        
+        # Remove espaços e converte colunas para minúsculo
         df_plano.columns = df_plano.columns.str.strip().str.lower()
-        rename_map_plano = {'codcontacontabil': 'CodContaContabil', 'contacontabil': 'ContaContabil'}
+        
+        # Renomeia, se necessário
+        rename_map_plano = {
+            'codcontacontabil': 'CodContaContabil',
+            'contacontabil': 'ContaContabil'
+        }
         for k, v in rename_map_plano.items():
             if k in df_plano.columns:
                 df_plano.rename(columns={k: v}, inplace=True)
+        
+        # Verifica colunas obrigatórias
         required_plano = {"CodContaContabil", "ContaContabil"}
         missing_plano = required_plano - set(df_plano.columns)
         if missing_plano:
-            st.error(f"O arquivo do Plano de Contas deve conter as colunas: {missing_plano}")
+            st.error(f"O Plano de Contas deve ter as colunas {missing_plano}.")
             st.stop()
         
-        # ------------------------------------------------------------------------------
-        # Leitura dos Dados Financeiros
-        # ------------------------------------------------------------------------------
-        if dados_file.name.endswith('.xlsx'):
-            df = pd.read_excel(dados_file)
+        # =======================================================================
+        # 2. Leitura e tratamento dos Dados Financeiros
+        # =======================================================================
+        if dados_file.name.endswith(".xlsx"):
+            df_dados = pd.read_excel(dados_file)
         else:
-            df = pd.read_csv(dados_file)
-        df.columns = df.columns.str.strip().str.lower()
+            df_dados = pd.read_csv(dados_file)
+        
+        # Remove espaços e converte colunas para minúsculo
+        df_dados.columns = df_dados.columns.str.strip().str.lower()
+        
+        # Renomeia para o padrão interno
         rename_map_dados = {
-            'codcontacontabil': 'CodContaContabil',
-            'tipo': 'Tipo',
-            'valor': 'Valor',
-            'mês': 'MÊS',
             'data': 'DATA',
-            'descrição': 'DESCRICAO'
+            'codcontacontabil': 'CodContaContabil',
+            'valor': 'Valor',
+            'descrição': 'Descricao',
+            'tipo': 'Tipo'
         }
         for k, v in rename_map_dados.items():
-            if k in df.columns:
-                df.rename(columns={k: v}, inplace=True)
-        required_dados = {"CodContaContabil", "Tipo", "Valor"}
-        missing_dados = required_dados - set(df.columns)
+            if k in df_dados.columns:
+                df_dados.rename(columns={k: v}, inplace=True)
+        
+        # Verifica colunas obrigatórias
+        required_dados = {"DATA", "CodContaContabil", "Valor", "Descricao", "Tipo"}
+        missing_dados = required_dados - set(df_dados.columns)
         if missing_dados:
-            st.error(f"O arquivo de dados deve conter as colunas: {missing_dados}")
+            st.error(f"O arquivo de dados deve ter as colunas {missing_dados}.")
             st.stop()
         
-        # ------------------------------------------------------------------------------
-        # Tratamento da Coluna Tipo
-        # ------------------------------------------------------------------------------
-        df["Tipo"] = df["Tipo"].astype(str).str.upper()
-        if not set(df["Tipo"].unique()).issubset({"D", "C"}):
-            st.error("A coluna 'Tipo' deve conter apenas 'D' (Despesa) ou 'C' (Receita).")
-            st.stop()
+        # =======================================================================
+        # 3. Converte a coluna Valor para numérico
+        # =======================================================================
+        df_dados["Valor"] = df_dados["Valor"].astype(str)
+        df_dados["Valor"] = df_dados["Valor"].str.replace('.', '', regex=False)  # remove pontos de milhar
+        df_dados["Valor"] = df_dados["Valor"].str.replace(',', '.', regex=False) # troca vírgula por ponto
+        df_dados["Valor"] = pd.to_numeric(df_dados["Valor"], errors='coerce')
         
-        # ------------------------------------------------------------------------------
-        # Conversão da Coluna Valor para Numérico
-        # ------------------------------------------------------------------------------
-        df["Valor"] = df["Valor"].astype(str)
-        df["Valor"] = df["Valor"].str.replace('.', '', regex=False)
-        df["Valor"] = df["Valor"].str.replace(',', '.', regex=False)
-        df["Valor"] = pd.to_numeric(df["Valor"], errors='coerce')
+        # =======================================================================
+        # 4. Tenta converter a coluna DATA para datas (opcional)
+        # =======================================================================
+        # Se já estiver em formato data, não há problema. Caso seja string, tentamos converter.
+        # Ajuste o formato se necessário, ou remova se não precisar.
+        df_dados["DATA"] = pd.to_datetime(df_dados["DATA"], errors='coerce')
         
-        # ------------------------------------------------------------------------------
-        # Processamento da Data, se a Coluna "MÊS" existir
-        # ------------------------------------------------------------------------------
-        if "MÊS" in df.columns:
-            df["Data"] = df["MÊS"].apply(converter_mes)
-            if df["Data"].isnull().all():
-                st.warning("Não foi possível converter a coluna 'MÊS' para data. Usaremos os valores originais.")
-                x_axis = "MÊS"
-                df.sort_values("MÊS", inplace=True)
-            else:
-                df = df[df["Data"].notnull()]
-                df.sort_values("Data", inplace=True)
-                x_axis = "Data"
-                df["MÊS_FORMATADO"] = df["Data"].dt.strftime("%m/%Y")
-                min_date = df["Data"].min().date()
-                max_date = df["Data"].max().date()
-                date_range = st.sidebar.date_input("Selecione o intervalo de datas", [min_date, max_date])
-                if isinstance(date_range, list) and len(date_range) == 2:
-                    start_date, end_date = date_range
-                    df = df[(df["Data"].dt.date >= start_date) & (df["Data"].dt.date <= end_date)]
-        else:
-            x_axis = "CodContaContabil"
+        # =======================================================================
+        # 5. Merge: correlaciona com base em CodContaContabil
+        # =======================================================================
+        df_merged = pd.merge(
+            df_dados,
+            df_plano[["CodContaContabil", "ContaContabil"]],
+            on="CodContaContabil",
+            how="left"
+        )
         
-        # ------------------------------------------------------------------------------
-        # Merge: Correlaciona os Dados Financeiros com o Plano de Contas
-        # ------------------------------------------------------------------------------
-        df = pd.merge(df, df_plano[["CodContaContabil", "ContaContabil"]], on="CodContaContabil", how="left")
+        # =======================================================================
+        # 6. Cálculos de métricas simples
+        # =======================================================================
+        # Mapeamos 'Tipo' = 'C' (Receita) e 'D' (Despesa)
+        df_merged["Tipo"] = df_merged["Tipo"].str.upper()
         
-        # Filtro: Seleciona as contas desejadas (baseado no Plano de Contas)
-        contas_disponiveis = df_plano["ContaContabil"].unique().tolist()
-        contas_selecionadas = st.sidebar.multiselect("Selecione as Contas para Análise:", options=contas_disponiveis, default=contas_disponiveis)
-        df = df[df["ContaContabil"].isin(contas_selecionadas)]
-        
-        # ------------------------------------------------------------------------------
-        # Mapeamento do Tipo para Descrição
-        # ------------------------------------------------------------------------------
-        df['Tipo_Descricao'] = df['Tipo'].map({'D': 'Despesa', 'C': 'Receita'})
-        
-        # ------------------------------------------------------------------------------
-        # Cálculo de Métricas Gerais
-        # ------------------------------------------------------------------------------
-        total_receita = df.loc[df['Tipo'] == 'C', 'Valor'].sum()
-        total_despesa = df.loc[df['Tipo'] == 'D', 'Valor'].sum()
+        total_receita = df_merged.loc[df_merged["Tipo"] == "C", "Valor"].sum()
+        total_despesa = df_merged.loc[df_merged["Tipo"] == "D", "Valor"].sum()
         saldo = total_receita - total_despesa
         
-        # Agrupamento para gráfico de barras por Conta
-        df_agg = df.groupby("ContaContabil")["Valor"].sum().reset_index()
+        # =======================================================================
+        # 7. Exibição de Dashboard
+        # =======================================================================
+        st.subheader("Métricas Gerais")
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Total Receita", f"{total_receita:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+        col2.metric("Total Despesa", f"{total_despesa:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+        col3.metric("Saldo", f"{saldo:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
         
-        # ------------------------------------------------------------------------------
-        # Criação de Abas: Dashboard Financeiro e Relatório Consolidado
-        # ------------------------------------------------------------------------------
-        tabs = st.tabs(["Dashboard Financeiro", "Relatório Consolidado"])
+        # Gráfico de barras: Total por Conta
+        df_por_conta = df_merged.groupby("ContaContabil")["Valor"].sum().reset_index()
+        fig = px.bar(
+            df_por_conta,
+            x="ContaContabil",
+            y="Valor",
+            title="Total por ContaContabil",
+            template="plotly_dark"
+        )
         
-        # ------------------------------------------------------------------------------
-        # Aba "Dashboard Financeiro": Métricas e Gráficos para Análise
-        # ------------------------------------------------------------------------------
-        with tabs[0]:
-            st.markdown("## Métricas Gerais")
-            col1, col2, col3 = st.columns(3)
-            col1.metric("Total Receita", format_brl(total_receita))
-            col2.metric("Total Despesa", format_brl(total_despesa))
-            col3.metric("Saldo", format_brl(saldo))
-            
-            st.markdown("### Análise Temporal por Conta")
-            if x_axis in ["Data", "MÊS"]:
-                df_line = df.groupby([x_axis, "ContaContabil"])["Valor"].sum().reset_index()
-                fig_line = px.line(
-                    df_line,
-                    x=x_axis,
-                    y="Valor",
-                    color="ContaContabil",
-                    title="Evolução dos Lançamentos por Conta",
-                    markers=True,
-                    template="plotly_dark"
-                )
-                fig_line.update_yaxes(tickformat=',.2f', exponentformat='none')
-                st.plotly_chart(fig_line, use_container_width=True, config={"locale": "pt-BR"})
-            
-            st.markdown("### Distribuição dos Lançamentos por Conta")
-            fig_bar = px.bar(
-                df_agg,
-                x="ContaContabil",
-                y="Valor",
-                title="Total de Lançamentos por Conta",
-                template="plotly_dark",
-                color="ContaContabil"  # colorindo de forma automática
-            )
-            st.plotly_chart(fig_bar, use_container_width=True, config={"locale": "pt-BR"})
-            
-            st.markdown("### Comparação entre Receitas e Despesas por Conta")
-            df_comparativo = df.groupby(["ContaContabil", "Tipo_Descricao"])["Valor"].sum().reset_index()
-            fig_comp = px.bar(
-                df_comparativo,
-                x="ContaContabil",
-                y="Valor",
-                color="Tipo_Descricao",
-                barmode="group",
-                title="Receitas vs Despesas por Conta",
-                template="plotly_dark",
-                color_discrete_map={"Receita": "#2ca02c", "Despesa": "#d62728"}  # verde para receitas, laranja para despesas
-            )
-            st.plotly_chart(fig_comp, use_container_width=True, config={"locale": "pt-BR"})
-            
-            # --------------------------------------------------------------------------
-            # Gráfico de Comparação 1
-            # Compara "RECEITA VENDAS ML", "RECEITA VENDAS SH" e "IMPOSTOS - DAS SIMPLES NACIONAL"
-            # --------------------------------------------------------------------------
-            cols_cmp1 = ["receita vendas ml", "receita vendas sh", "impostos - das simples nacional"]
-            if set([c.lower() for c in cols_cmp1]).issubset(set(df.columns.str.lower())):
-                # Buscamos as colunas de forma case-insensitive
-                valores_cmp1 = {}
-                for col in cols_cmp1:
-                    # Procura a coluna ignorando case
-                    col_found = [c for c in df.columns if c.lower() == col.lower()]
-                    if col_found:
-                        valores_cmp1[col] = df[col_found[0]].sum()
-                if valores_cmp1:
-                    df_cmp1 = pd.DataFrame({
-                        "Categoria": list(valores_cmp1.keys()),
-                        "Valor": list(valores_cmp1.values())
-                    })
-                    # Definindo um mapa de cores customizado (não usar vermelho para receita)
-                    cmp1_colors = {"receita vendas ml": "#1f77b4", "receita vendas sh": "#ff7f0e", "impostos - das simples nacional": "#2ca02c"}
-                    fig_cmp1 = px.bar(
-                        df_cmp1,
-                        x="Categoria",
-                        y="Valor",
-                        title="Comparação 1: Vendas vs Impostos Simples Nacional",
-                        template="plotly_dark",
-                        color="Categoria",
-                        color_discrete_map={k: cmp1_colors.get(k.lower(), "#cccccc") for k in df_cmp1["Categoria"]}
-                    )
-                    st.plotly_chart(fig_cmp1, use_container_width=True, config={"locale": "pt-BR"})
-            
-            # --------------------------------------------------------------------------
-            # Gráfico de Comparação 2
-            # Compara "RECEITA VENDAS ML" e "RECEITA VENDAS SH" com "COMPRA DE MERCADORIAS PARA REVENDA", 
-            # "EMBALAGEM *CUSTO" e "TAXA/COMISAO/FRETE-MAKPLACE"
-            # --------------------------------------------------------------------------
-            cols_cmp2 = ["receita vendas ml", "receita vendas sh", "compra de mercadorias para revenda", "embalagem *custo", "taxa/comisao/frete-makplace"]
-            if set([c.lower() for c in cols_cmp2]).issubset(set(df.columns.str.lower())):
-                valores_cmp2 = {}
-                for col in cols_cmp2:
-                    col_found = [c for c in df.columns if c.lower() == col.lower()]
-                    if col_found:
-                        valores_cmp2[col] = df[col_found[0]].sum()
-                if valores_cmp2:
-                    df_cmp2 = pd.DataFrame({
-                        "Categoria": list(valores_cmp2.keys()),
-                        "Valor": list(valores_cmp2.values())
-                    })
-                    fig_cmp2 = px.bar(
-                        df_cmp2,
-                        x="Categoria",
-                        y="Valor",
-                        title="Comparação 2: Vendas vs Custos e Despesas",
-                        template="plotly_dark",
-                        color="Categoria",
-                        color_discrete_sequence=px.colors.qualitative.Dark2
-                    )
-                    st.plotly_chart(fig_cmp2, use_container_width=True, config={"locale": "pt-BR"})
+        st.markdown("<div class='container'>", unsafe_allow_html=True)
+        st.plotly_chart(fig, use_container_width=True, config={"locale": "pt-BR"})
+        st.markdown("</div>", unsafe_allow_html=True)
         
-        # ------------------------------------------------------------------------------
-        # Aba "Relatório Consolidado": Tabela e Dados Detalhados
-        # ------------------------------------------------------------------------------
-        with tabs[1]:
-            st.markdown("## Relatório Consolidado por Conta")
-            relatorio = df.groupby(["ContaContabil", "Tipo_Descricao"])["Valor"].sum().reset_index()
-            relatorio["Valor"] = relatorio["Valor"].apply(format_brl)
-            st.dataframe(relatorio)
-            
-            st.markdown("## Dados Detalhados")
-            display_df = df.copy()
-            if "MÊS_FORMATADO" in display_df.columns:
-                display_df["MÊS"] = display_df["MÊS_FORMATADO"]
-            for col_to_drop in ["Data", "MÊS_FORMATADO"]:
-                if col_to_drop in display_df.columns:
-                    display_df.drop(col_to_drop, axis=1, inplace=True)
-            total_values = {}
-            for col in display_df.columns:
-                if pd.api.types.is_numeric_dtype(display_df[col]):
-                    total_values[col] = display_df[col].sum()
-                else:
-                    total_values[col] = "Total" if col.upper() == "MÊS" else ""
-            total_df = pd.DataFrame(total_values, index=["Total"])
-            display_df = pd.concat([display_df, total_df])
-            display_df = display_df.applymap(lambda x: "" if (isinstance(x, (int, float)) and (pd.isna(x) or x == 0)) 
-                                              else format_brl(x) if isinstance(x, (int, float)) 
-                                              else x)
-            st.dataframe(display_df)
-            
+        # Tabela com os dados finais
+        st.markdown("<div class='container'>", unsafe_allow_html=True)
+        st.subheader("Dados Consolidados (Merge)")
+        
+        # Exemplo: exibe as primeiras 20 linhas
+        st.dataframe(df_merged.head(20))
+        st.markdown("</div>", unsafe_allow_html=True)
+        
     except Exception as e:
         st.error(f"Erro ao processar os arquivos: {e}")
         st.text(traceback.format_exc())
 else:
-    st.sidebar.info("Aguardando o upload dos arquivos de Plano de Contas e Dados Financeiros.")
-    st.info("Utilize a barra lateral para carregar os arquivos e configurar os filtros.")
+    st.info("Carregue o Plano de Contas e o Arquivo de Dados Financeiros na barra lateral.")
