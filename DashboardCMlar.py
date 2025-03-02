@@ -26,31 +26,49 @@ st.markdown("""
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         font-weight: bold !important;
     }
-    /* Forçar que todos os elementos herdem a cor verde negrito */
     html, body, [data-testid="stAppViewContainer"] * {
         color: #00FF00 !important;
         font-weight: bold !important;
     }
-    /* Títulos (h1-h6) */
     h1, h2, h3, h4, h5, h6 {
         color: #00FF00 !important;
         font-weight: bold !important;
     }
-    /* Sidebar escura */
+    /* Sidebar */
     [data-testid="stSidebar"] {
         background-color: #232323 !important;
     }
-    /* Título da sidebar */
     [data-testid="stSidebar"] .css-1d391kg {
         color: #00FF00 !important;
         font-weight: bold !important;
     }
-    /* Inputs, sliders, etc. */
-    input, .st-bj, .st-at, .stTextInput, .stDateInput {
+    /* Inputs e sliders */
+    input, .st-bj, .st-at, .stTextInput {
         background-color: #2d2d2d !important;
         border: 1px solid #00FF00 !important;
     }
-    /* Botões */
+    /* ================================
+       1.1) Ajustes para o Date Input (datepicker)
+       ================================ */
+    /* Geralmente o datepicker é gerado pelo BaseWeb, usamos o data-baseweb para selecionar */
+    div[data-baseweb="datepicker"] {
+        background-color: #2d2d2d !important;
+        color: #00FF00 !important;
+        border: 1px solid #00FF00 !important;
+        border-radius: 5px !important;
+        padding: 5px;
+    }
+    div[data-baseweb="datepicker"] input {
+        background-color: #2d2d2d !important;
+        color: #00FF00 !important;
+        border: 1px solid #00FF00 !important;
+    }
+    div[data-baseweb="datepicker"] input::placeholder {
+        color: #00FF00 !important;
+    }
+    /* ================================
+       2) BOTÕES, CARTÕES E SEPARADOR
+       ================================ */
     .stButton > button {
         background-color: #00FF00 !important;
         color: #000000 !important;
@@ -62,7 +80,6 @@ st.markdown("""
     .stButton > button:hover {
         transform: scale(1.03);
     }
-    /* Cartões (métricas) */
     .stMetric-label {
         font-weight: bold !important;
     }
@@ -70,15 +87,12 @@ st.markdown("""
         font-size: 1.5rem !important;
         font-weight: bold !important;
     }
-    /* Separador (hr) */
     hr {
         border: 1px solid #00FF00;
     }
-    
     /* ================================
-       2) FILE UPLOADER ESTILIZADO
+       3) FILE UPLOADER ESTILIZADO
        ================================ */
-    /* Container principal do uploader */
     [data-testid="stFileUploader"] {
         background-color: #000000 !important;
         border: 1px solid #00FF00 !important;
@@ -89,7 +103,6 @@ st.markdown("""
         color: #00FF00 !important;
         font-weight: bold !important;
     }
-    /* Área de drop (dropzone) */
     [data-testid="stFileUploadDropzone"] {
         background-color: #232323 !important;
         border: 1px dashed #00FF00 !important;
@@ -99,7 +112,6 @@ st.markdown("""
         color: #00FF00 !important;
         font-weight: bold !important;
     }
-    /* Label do botão "Browse files" */
     [data-testid="stFileUploadLabel"] {
         background-color: #232323 !important;
         color: #00FF00 !important;
@@ -108,7 +120,6 @@ st.markdown("""
         color: #00FF00 !important;
         font-weight: bold !important;
     }
-    /* Instruções do uploader (ex.: "Drag and drop file here") */
     [data-testid="stFileUploadInstructions"] {
         background-color: #232323 !important;
         color: #00FF00 !important;
@@ -197,7 +208,7 @@ if df is not None:
         resumo_pivot['Total'] = resumo_pivot.sum(axis=1)
         resumo_pivot.sort_values(by='Total', ascending=False, inplace=True)
     
-        # Estilizando a tabela: cabeçalho e índice em verde negrito, fundo preto, corpo com texto verde
+        # Tabela estilizada: cabeçalho e índice em verde negrito, fundo preto, corpo com texto verde
         resumo_pivot_styled = (
             resumo_pivot
             .style
