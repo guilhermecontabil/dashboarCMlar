@@ -2,50 +2,44 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# ----------------------------------------------------------------
-# 1) CONFIGURAÇÕES INICIAIS
-# ----------------------------------------------------------------
+# ------------------------------------
+# 1) CONFIGURAÇÕES E ESTILO
+# ------------------------------------
 st.set_page_config(page_title="Dashboard Contábil", layout="wide")
 
 def convert_df(df):
-    """Converte um DataFrame para CSV (encode utf-8)."""
     return df.to_csv(index=False).encode('utf-8')
 
 def formata_valor_brasil(valor):
-    """Formata valores float no padrão brasileiro: 1.234,56"""
+    """Converte float para formato brasileiro (1.234,56)."""
     if pd.isnull(valor):
         return ""
     return f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
-# ----------------------------------------------------------------
-# 2) CSS GLOBAL
-# ----------------------------------------------------------------
+# CSS global abrangente para forçar fundo dark, texto branco e estilizar o file uploader
 st.markdown("""
     <style>
-    /* ----------------------------------------------------------------
-       2.1) REGRAS GLOBAIS
-       ----------------------------------------------------------------*/
-    /* Força cor branca em praticamente todos os textos */
+    /* ================================
+       1) REGRAS GLOBAIS
+       ================================ */
+    /* Fundo escuro e texto branco em quase tudo */
+    html, body, [data-testid="stAppViewContainer"] {
+        background-color: #1e1e1e !important;
+        color: #FFFFFF !important;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
     html, body, [data-testid="stAppViewContainer"] * {
         color: #FFFFFF !important;
     }
-    /* Fundo global dark */
-    html, body, [data-testid="stAppViewContainer"], .main, .block-container {
-        background-color: #1e1e1e !important;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    }
 
-    /* TÍTULOS em verde neon */
+    /* Títulos em verde neon */
     h1, h2, h3, h4, h5, h6 {
-        color: #00FF7F !important; /* Verde neon */
-        text-shadow: none !important;
+        color: #00FF7F !important;
     }
 
-    /* ----------------------------------------------------------------
-       2.2) SIDEBAR
-       ----------------------------------------------------------------*/
+    /* Sidebar escura */
     [data-testid="stSidebar"] {
-        background-color: #232323 !important; /* Fundo da sidebar */
+        background-color: #232323 !important;
     }
     /* Título da sidebar */
     [data-testid="stSidebar"] .css-1d391kg {
@@ -53,43 +47,15 @@ st.markdown("""
         font-weight: bold !important;
     }
 
-    /* ----------------------------------------------------------------
-       2.3) FILE UPLOADER
-       ----------------------------------------------------------------*/
-    /* Container principal do uploader */
-    [data-testid="stFileUploader"] {
-        background-color: #000000 !important;  /* fundo do uploader */
+    /* Inputs, Sliders etc. */
+    input, .st-bj, .st-at, .stTextInput, .stDateInput {
+        background-color: #2d2d2d !important;
         border: 1px solid #00FF7F !important;
-        padding: 10px;
-        border-radius: 5px;
-    }
-    /* Forçar texto branco no container */
-    [data-testid="stFileUploader"] * {
-        color: #FFFFFF !important;
-    }
-    /* Área interna de drop (dropzone) */
-    [data-testid="stFileUploader"] [data-testid="stDropzone"] {
-        background-color: #000000 !important;  /* fundo do dropzone */
-        color: #FFFFFF !important;
-        border: 1px dashed #00FF7F !important;
-        border-radius: 5px;
     }
 
-    /* ----------------------------------------------------------------
-       2.4) MÉTRICAS (CARDS)
-       ----------------------------------------------------------------*/
-    .stMetric-label {
-        font-weight: bold !important;  /* título do card */
-    }
-    .stMetric-value {
-        font-size: 1.5rem !important;  /* valor do card */
-    }
-
-    /* ----------------------------------------------------------------
-       2.5) BOTÕES
-       ----------------------------------------------------------------*/
+    /* Botões */
     .stButton > button {
-        background-color: #00FF7F !important; /* verde neon */
+        background-color: #00FF7F !important;
         color: #000000 !important;
         border-radius: 8px !important;
         font-weight: bold !important;
@@ -100,36 +66,74 @@ st.markdown("""
         transform: scale(1.03);
     }
 
-    /* ----------------------------------------------------------------
-       2.6) INPUTS E SLIDERS
-       ----------------------------------------------------------------*/
-    input, .st-bj, .st-at, .stTextInput, .stDateInput {
-        background-color: #2d2d2d !important;
-        border: 1px solid #00FF7F !important;
+    /* Cartões (métricas) */
+    .stMetric-label {
+        font-weight: bold !important;
+    }
+    .stMetric-value {
+        font-size: 1.5rem !important;
     }
 
-    /* ----------------------------------------------------------------
-       2.7) TABELAS COM PANDAS STYLER
-       ----------------------------------------------------------------*/
-    /* Ajustamos apenas as colunas e linhas do cabeçalho no styler,
-       mas aqui poderíamos sobrescrever algo adicional se precisarmos. */
-
-    /* ----------------------------------------------------------------
-       2.8) SEPARADOR (HR)
-       ----------------------------------------------------------------*/
+    /* Separador (hr) */
     hr {
         border: 1px solid #00FF7F;
+    }
+
+    /* ================================
+       2) FILE UPLOADER ESTILIZADO
+       ================================ */
+    /* Container principal do uploader */
+    [data-testid="stFileUploader"] {
+        background-color: #000000 !important; /* fundo da caixa do uploader */
+        border: 1px solid #00FF7F !important;
+        border-radius: 5px;
+        padding: 10px;
+    }
+    /* Forçar texto branco no container do uploader */
+    [data-testid="stFileUploader"] * {
+        color: #FFFFFF !important;
+    }
+
+    /* Área de drop (dropzone) */
+    [data-testid="stFileUploadDropzone"] {
+        background-color: #232323 !important; /* fundo do dropzone */
+        color: #FFFFFF !important;
+        border: 1px dashed #00FF7F !important;
+        border-radius: 5px;
+    }
+    [data-testid="stFileUploadDropzone"] * {
+        color: #FFFFFF !important;
+    }
+
+    /* Possíveis seletores para o label/botão "Browse files" */
+    [data-testid="stFileUploadLabel"] {
+        background-color: #232323 !important;
+        color: #FFFFFF !important;
+    }
+    [data-testid="stFileUploadLabel"] * {
+        color: #FFFFFF !important;
+    }
+
+    /* Instruções do uploader (ex.: "Drag and drop file here") */
+    [data-testid="stFileUploadInstructions"] {
+        background-color: #232323 !important;
+        color: #FFFFFF !important;
+    }
+    [data-testid="stFileUploadInstructions"] * {
+        color: #FFFFFF !important;
     }
     </style>
 """, unsafe_allow_html=True)
 
-# ----------------------------------------------------------------
-# 3) BARRA LATERAL: UPLOAD DE ARQUIVO
-# ----------------------------------------------------------------
+# ------------------------------------
+# 2) BARRA LATERAL: UPLOAD DE ARQUIVO
+# ------------------------------------
 st.sidebar.title("⚙️ Configurações")
-
 uploaded_file = st.sidebar.file_uploader("📥 Importar arquivo Excel", type=["xlsx"])
 
+# ------------------------------------
+# 3) EXECUÇÃO DO DASHBOARD (SE HOUVER DF)
+# ------------------------------------
 if uploaded_file is not None:
     with st.spinner("Carregando arquivo..."):
         df = pd.read_excel(uploaded_file)
@@ -141,31 +145,24 @@ else:
     df = None
     st.sidebar.warning("Por favor, faça o upload de um arquivo Excel para começar.")
 
-# ----------------------------------------------------------------
-# 4) EXECUÇÃO DO DASHBOARD (SE HOUVER DF)
-# ----------------------------------------------------------------
 if df is not None:
-    # 4.1) Conversões de tipo
+    # 3.1) Conversões de tipo
     df['Data'] = pd.to_datetime(df['Data'], dayfirst=True, errors='coerce')
     df['Valor'] = pd.to_numeric(df['Valor'], errors='coerce')
 
-    # 4.2) FILTROS
+    # --------------------------------
+    # 3.2) FILTROS NA BARRA LATERAL
+    # --------------------------------
     min_date = df['Data'].min()
     max_date = df['Data'].max()
-    selected_dates = st.sidebar.date_input(
-        "Selecione o intervalo de datas:",
-        [min_date, max_date]
-    )
+    selected_dates = st.sidebar.date_input("Selecione o intervalo de datas:", [min_date, max_date])
     if isinstance(selected_dates, list) and len(selected_dates) == 2:
         start_date, end_date = selected_dates
         df = df[(df['Data'] >= pd.to_datetime(start_date)) & (df['Data'] <= pd.to_datetime(end_date))]
 
     if 'GrupoDeConta' in df.columns:
         grupos_unicos = df['GrupoDeConta'].dropna().unique()
-        grupo_selecionado = st.sidebar.selectbox(
-            "🗂️ Filtrar por Grupo de Conta:",
-            ["Todos"] + list(grupos_unicos)
-        )
+        grupo_selecionado = st.sidebar.selectbox("🗂️ Filtrar por Grupo de Conta:", ["Todos"] + list(grupos_unicos))
         if grupo_selecionado != "Todos":
             df = df[df['GrupoDeConta'] == grupo_selecionado]
 
@@ -173,7 +170,9 @@ if df is not None:
     if filtro_conta:
         df = df[df['ContaContabil'].str.contains(filtro_conta, case=False, na=False)]
 
-    # 4.3) CABEÇALHO E MÉTRICAS
+    # --------------------------------
+    # 4) CABEÇALHO E MÉTRICAS
+    # --------------------------------
     st.title("Dashboard Contábil")
     st.markdown("<hr>", unsafe_allow_html=True)
 
@@ -193,12 +192,14 @@ if df is not None:
     col4.metric("Compras de Mercadoria 🛒", formata_valor_brasil(total_compras_revenda))
     col5.metric("Impostos (DAS) 🧾", formata_valor_brasil(total_das))
 
-    # 4.4) ABAS
+    # --------------------------------
+    # 5) CRIAÇÃO DAS ABAS
+    # --------------------------------
     tab1, tab2, tab3, tab4 = st.tabs(["📊 Resumo", "📄 Dados", "📈 Gráficos", "💾 Exportação"])
 
-    # ------------------------------------------------------------
-    # ABA 1: RESUMO
-    # ------------------------------------------------------------
+    # ----------------------------
+    # 5.1) ABA: RESUMO
+    # ----------------------------
     with tab1:
         st.markdown("<h2 style='color:#00FF7F;'>Resumo por Conta Contábil</h2>", unsafe_allow_html=True)
 
@@ -209,42 +210,30 @@ if df is not None:
         resumo_pivot['Total'] = resumo_pivot.sum(axis=1)
         resumo_pivot.sort_values(by='Total', ascending=False, inplace=True)
 
-        # Styler para tabela: fundo preto, cabeçalho em neon, corpo texto branco
-        resumo_styled = (
+        # Tabela estilizada com fundo preto e texto branco
+        resumo_pivot_styled = (
             resumo_pivot
             .style
             .set_table_styles([
-                {
-                    'selector': 'thead tr th',
-                    'props': [
-                        ('background-color', '#000000'),
-                        ('color', '#00FF7F'),
-                        ('font-weight', 'bold')
-                    ]
-                },
-                {
-                    'selector': 'tbody tr th',
-                    'props': [
-                        ('background-color', '#000000'),
-                        ('color', '#00FF7F'),
-                        ('font-weight', 'bold')
-                    ]
-                },
-                {
-                    'selector': 'tbody tr td',
-                    'props': [
-                        ('background-color', '#000000'),
-                        ('color', '#FFFFFF')
-                    ]
-                },
+                {'selector': 'thead tr th',
+                 'props': [('background-color', '#000000'),
+                           ('color', '#00FF7F'),
+                           ('font-weight', 'bold')]},
+                {'selector': 'tbody tr th',
+                 'props': [('background-color', '#000000'),
+                           ('color', '#00FF7F'),
+                           ('font-weight', 'bold')]},
+                {'selector': 'tbody tr td',
+                 'props': [('background-color', '#000000'),
+                           ('color', '#FFFFFF')]}
             ])
             .format(lambda x: formata_valor_brasil(x))
         )
-        st.table(resumo_styled)
+        st.table(resumo_pivot_styled)
 
-    # ------------------------------------------------------------
-    # ABA 2: DADOS
-    # ------------------------------------------------------------
+    # ----------------------------
+    # 5.2) ABA: DADOS
+    # ----------------------------
     with tab2:
         st.markdown("<h2 style='color:#00FF7F;'>Dados Importados</h2>", unsafe_allow_html=True)
 
@@ -254,37 +243,25 @@ if df is not None:
             df_sorted
             .style
             .set_table_styles([
-                {
-                    'selector': 'thead tr th',
-                    'props': [
-                        ('background-color', '#000000'),
-                        ('color', '#00FF7F'),
-                        ('font-weight', 'bold')
-                    ]
-                },
-                {
-                    'selector': 'tbody tr th',
-                    'props': [
-                        ('background-color', '#000000'),
-                        ('color', '#00FF7F'),
-                        ('font-weight', 'bold')
-                    ]
-                },
-                {
-                    'selector': 'tbody tr td',
-                    'props': [
-                        ('background-color', '#000000'),
-                        ('color', '#FFFFFF')
-                    ]
-                },
+                {'selector': 'thead tr th',
+                 'props': [('background-color', '#000000'),
+                           ('color', '#00FF7F'),
+                           ('font-weight', 'bold')]},
+                {'selector': 'tbody tr th',
+                 'props': [('background-color', '#000000'),
+                           ('color', '#00FF7F'),
+                           ('font-weight', 'bold')]},
+                {'selector': 'tbody tr td',
+                 'props': [('background-color', '#000000'),
+                           ('color', '#FFFFFF')]}
             ])
             .format({'Valor': lambda x: formata_valor_brasil(x)})
         )
         st.table(df_sorted_styled)
 
-    # ------------------------------------------------------------
-    # ABA 3: GRÁFICOS
-    # ------------------------------------------------------------
+    # ----------------------------
+    # 5.3) ABA: GRÁFICOS
+    # ----------------------------
     with tab3:
         st.subheader("Entradas (Valores Positivos)")
         df_positivo = df[df['Valor'] > 0]
@@ -385,7 +362,7 @@ if df is not None:
         if not df_comparacao.empty:
             df_comparacao_melt = df_comparacao.melt(
                 id_vars='Mês/Ano',
-                value_vars=['Receitas','Impostos'],
+                value_vars=['Receitas', 'Impostos'],
                 var_name='Tipo',
                 value_name='Valor'
             )
@@ -409,9 +386,9 @@ if df is not None:
         else:
             st.write("Não há dados para gerar a comparação entre Receitas e Impostos (DAS).")
 
-    # ------------------------------------------------------------
-    # ABA 4: EXPORTAÇÃO
-    # ------------------------------------------------------------
+    # ----------------------------
+    # 5.4) ABA: EXPORTAÇÃO
+    # ----------------------------
     with tab4:
         st.subheader("Exportar Resumo")
         resumo2 = df.groupby(['ContaContabil', 'Mês/Ano'])['Valor'].sum().reset_index()
@@ -427,4 +404,4 @@ if df is not None:
             mime='text/csv'
         )
 else:
-    st.warning("Por favor, faça o upload de um arquivo Excel para começar.")
+    st.info("Nenhum arquivo carregado ainda.")
