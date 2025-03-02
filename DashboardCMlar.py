@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.express as px
 
 # ------------------------------------
-# 1) CONFIGURAÇÕES E TEMA DARK
+# 1) CONFIGURAÇÕES E ESTILO
 # ------------------------------------
 st.set_page_config(page_title="Dashboard Contábil", layout="wide")
 
@@ -19,37 +19,46 @@ def formata_valor_brasil(valor):
         return ""
     return f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
-# CSS para forçar fundo escuro em toda a página e manter elementos em neon
+# CSS para tema dark com gradiente e textos neon
 st.markdown("""
     <style>
-    /* Fundo geral em dark */
+    /* Fundo gradiente no body */
     html, body, [data-testid="stAppViewContainer"], .main, .block-container {
-        background-color: #1a1a1a !important;
+        background: linear-gradient(135deg, #0d0d0d, #333333) !important;
         color: #ffffff !important;
     }
 
     /* Estilo dos títulos */
     h1, h2, h3, h4, h5, h6 {
-        color: #39ff14;
+        color: #39ff14 !important;
     }
 
     /* Estilo das métricas (cartões) */
     .stMetric-label {
-        color: #39ff14;
+        color: #39ff14 !important;
+        font-weight: bold;
     }
     .stMetric-value {
-        color: #39ff14;
+        color: #00ffff !important; /* Azul neon */
+        font-size: 1.5rem !important;
     }
 
     /* Estilo dos botões */
     .stButton>button {
         background-color: #39ff14;
         color: #000000;
+        border-radius: 8px;
+        font-weight: bold;
     }
 
     /* Estilo da barra lateral */
     .sidebar .sidebar-content {
-        background-color: #1a1a1a;
+        background-color: #1a1a1a !important;
+    }
+
+    /* Dataframe (tabelas) */
+    .st-dataframe {
+        color: #ffffff;
     }
 
     /* Separador */
@@ -77,7 +86,7 @@ else:
     st.sidebar.warning("Por favor, faça o upload de um arquivo Excel para começar.")
 
 # ------------------------------------
-# 3) SÓ PROSSEGUE SE HOUVER ARQUIVO
+# 3) EXECUÇÃO DO DASHBOARD (SE HOUVER DF)
 # ------------------------------------
 if df is not None:
     # 3.1) Conversões de tipo
@@ -95,14 +104,12 @@ if df is not None:
         start_date, end_date = selected_dates
         df = df[(df['Data'] >= pd.to_datetime(start_date)) & (df['Data'] <= pd.to_datetime(end_date))]
 
-    # b) Filtro por GrupoDeConta (opcional)
+    # b) Filtro por GrupoDeConta (só se a coluna existir)
     if 'GrupoDeConta' in df.columns:
         grupos_unicos = df['GrupoDeConta'].dropna().unique()
         grupo_selecionado = st.sidebar.selectbox("🗂️ Filtrar por Grupo de Conta:", ["Todos"] + list(grupos_unicos))
         if grupo_selecionado != "Todos":
             df = df[df['GrupoDeConta'] == grupo_selecionado]
-    else:
-        st.sidebar.info("Coluna 'GrupoDeConta' não encontrada. Filtro desabilitado.")
 
     # c) Filtro por ContaContabil (texto)
     filtro_conta = st.sidebar.text_input("🔍 Filtrar Conta Contábil:")
@@ -112,7 +119,7 @@ if df is not None:
     # --------------------------------
     # 4) CABEÇALHO E MÉTRICAS
     # --------------------------------
-    st.title("💹 Dashboard Contábil")
+    st.title("Dashboard Contábil")
     st.markdown("<hr>", unsafe_allow_html=True)
 
     # Entradas (valores > 0)
@@ -128,16 +135,15 @@ if df is not None:
     # - Impostos - DAS Simples Nacional
     total_das = df[df['ContaContabil'] == 'Impostos - DAS Simples Nacional']['Valor'].sum()
 
-    # Exibir métricas em duas linhas (3 colunas na primeira linha, 2 colunas na segunda)
-    # Linha 1
+    # Exibir métricas em duas linhas
+    # Linha 1: Entradas, Saídas, Saldo
     col1, col2, col3 = st.columns(3)
     col1.metric("Entradas (R$)", formata_valor_brasil(total_entradas))
     col2.metric("Saídas (R$)", formata_valor_brasil(abs(total_saidas)))  # Exibe saída como positivo
     col3.metric("Saldo (R$)", formata_valor_brasil(saldo))
 
-    # Linha 2
+    # Linha 2: Compras, Impostos
     col4, col5 = st.columns(2)
-    # Caso queira exibir “Compras” e “Impostos” sempre como valor positivo, use abs().
     col4.metric("Compras de Mercadoria para Revenda", formata_valor_brasil(total_compras_revenda))
     col5.metric("Impostos - DAS Simples Nacional", formata_valor_brasil(total_das))
 
@@ -152,18 +158,19 @@ if df is not None:
     with tab1:
         st.subheader("Resumo por Conta Contábil")
 
+        # Criar Mês/Ano e agrupar
         df['Mês/Ano'] = df['Data'].dt.to_period('M').astype(str)
         resumo = df.groupby(['ContaContabil', 'Mês/Ano'])['Valor'].sum().reset_index()
-        resumo_pivot = resumo.pivot(index='ContaContabil', columns='Mês/Ano', values='Valor').fillna(0)
 
-        # Adiciona coluna Total e ordena decrescentemente
+        # Pivotar e ordenar
+        resumo_pivot = resumo.pivot(index='ContaContabil', columns='Mês/Ano', values='Valor').fillna(0)
         resumo_pivot['Total'] = resumo_pivot.sum(axis=1)
         resumo_pivot.sort_values(by='Total', ascending=False, inplace=True)
 
         st.dataframe(
             resumo_pivot.style
             .format(lambda x: formata_valor_brasil(x))
-            .set_properties(**{'background-color': '#1a1a1a', 'color': '#ffffff'})
+            .set_properties(**{'background-color': 'transparent', 'color': '#ffffff'})
         )
 
     # ----------------------------
@@ -172,13 +179,13 @@ if df is not None:
     with tab2:
         st.subheader("Dados Importados")
 
-        # Ordena por Valor desc, assim valores positivos (maiores) ficam no topo
+        # Ordenar por Valor desc para valores positivos no topo
         df_sorted = df.sort_values(by='Valor', ascending=False)
 
         st.dataframe(
             df_sorted.style
             .format({'Valor': lambda x: formata_valor_brasil(x)})
-            .set_properties(**{'background-color': '#1a1a1a', 'color': '#ffffff'})
+            .set_properties(**{'background-color': 'transparent', 'color': '#ffffff'})
         )
 
     # ----------------------------
@@ -275,14 +282,12 @@ if df is not None:
 
         # d) Comparação: (Receita Vendas ML + SH) vs (Impostos - DAS Simples Nacional)
         st.subheader("Comparação: (Receita Vendas ML + SH) x (Impostos - DAS Simples Nacional)")
-
         df_receitas = df[df['ContaContabil'].isin(['Receita Vendas ML', 'Receita Vendas SH'])]
         df_receitas_mensal = df_receitas.groupby('Mês/Ano')['Valor'].sum().reset_index()
         df_receitas_mensal.rename(columns={'Valor': 'Receitas'}, inplace=True)
 
         df_impostos = df[df['ContaContabil'] == 'Impostos - DAS Simples Nacional'].copy()
-        # Converte valores para positivo, para exibir acima do eixo
-        df_impostos['Valor'] = df_impostos['Valor'].abs()
+        df_impostos['Valor'] = df_impostos['Valor'].abs()  # exibir sempre positivo
         df_impostos_mensal = df_impostos.groupby('Mês/Ano')['Valor'].sum().reset_index()
         df_impostos_mensal.rename(columns={'Valor': 'Impostos'}, inplace=True)
 
@@ -319,7 +324,6 @@ if df is not None:
     # ----------------------------
     with tab4:
         st.subheader("Exportar Resumo")
-        df['Mês/Ano'] = df['Data'].dt.to_period('M').astype(str)
         resumo2 = df.groupby(['ContaContabil', 'Mês/Ano'])['Valor'].sum().reset_index()
         resumo_pivot2 = resumo2.pivot(index='ContaContabil', columns='Mês/Ano', values='Valor').fillna(0)
         resumo_pivot2['Total'] = resumo_pivot2.sum(axis=1)
