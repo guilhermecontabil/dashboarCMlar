@@ -15,10 +15,10 @@ def formata_valor_brasil(valor):
         return ""
     return f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
-# CSS global revisado com estilos para o File Uploader
+# CSS global revisado, com destaque para o File Uploader:
 st.markdown("""
     <style>
-    /* Regra universal: força a cor branca para todos os elementos */
+    /* Regra universal: força a cor branca para a maioria dos elementos */
     html, body, [data-testid="stAppViewContainer"] * {
         color: #FFFFFF !important;
     }
@@ -30,7 +30,6 @@ st.markdown("""
     /* Títulos em verde neon */
     h1, h2, h3, h4, h5, h6 {
         color: #00FF7F !important;
-        text-shadow: none !important;
     }
     /* Cartões (métricas) */
     .stMetric-label {
@@ -68,9 +67,9 @@ st.markdown("""
     hr {
         border: 1px solid #00FF7F;
     }
-    /* Estilização do File Uploader */
+    /* Estilização do File Uploader: fundo preto e texto branco */
     [data-testid="stFileUploader"] {
-        background-color: #2d2d2d !important;
+        background-color: #000000 !important;
         border: 1px solid #00FF7F !important;
         padding: 10px;
         border-radius: 5px;
@@ -147,9 +146,7 @@ if df is not None:
     # ABAS
     tab1, tab2, tab3, tab4 = st.tabs(["📊 Resumo", "📄 Dados", "📈 Gráficos", "💾 Exportação"])
     
-    # ==========================
     # ABA 1: RESUMO
-    # ==========================
     with tab1:
         st.markdown("<h2 style='color:#00FF7F;'>Resumo por Conta Contábil</h2>", unsafe_allow_html=True)
     
@@ -160,7 +157,6 @@ if df is not None:
         resumo_pivot['Total'] = resumo_pivot.sum(axis=1)
         resumo_pivot.sort_values(by='Total', ascending=False, inplace=True)
     
-        # Styler: cabeçalho e índice em verde neon; fundo preto; corpo com texto branco
         resumo_pivot_styled = (
             resumo_pivot
             .style
@@ -181,9 +177,7 @@ if df is not None:
         )
         st.table(resumo_pivot_styled)
     
-    # ==========================
     # ABA 2: DADOS
-    # ==========================
     with tab2:
         st.markdown("<h2 style='color:#00FF7F;'>Dados Importados</h2>", unsafe_allow_html=True)
     
@@ -209,9 +203,7 @@ if df is not None:
         )
         st.table(df_sorted_styled)
     
-    # ==========================
     # ABA 3: GRÁFICOS
-    # ==========================
     with tab3:
         st.subheader("Entradas (Valores Positivos)")
         df_positivo = df[df['Valor'] > 0]
@@ -336,9 +328,7 @@ if df is not None:
         else:
             st.write("Não há dados para gerar a comparação entre Receitas e Impostos (DAS).")
     
-    # ==========================
     # ABA 4: EXPORTAÇÃO
-    # ==========================
     with tab4:
         st.subheader("Exportar Resumo")
         resumo2 = df.groupby(['ContaContabil', 'Mês/Ano'])['Valor'].sum().reset_index()
