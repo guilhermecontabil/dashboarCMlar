@@ -14,44 +14,43 @@ def formata_valor_brasil(valor):
         return ""
     return f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
-# CSS Global para forçar fundo dark e fonte em amarelo neon (#FFFF00)
+# CSS Global para forçar fundo dark e fonte em azul cobalto (#0047AB)
 st.markdown("""
     <style>
     /* ================================
        1) REGRAS GLOBAIS
        ================================ */
-    /* Fundo escuro e texto amarelo neon em todo o app */
+    /* Fundo escuro e texto em azul cobalto em todo o app */
     html, body, [data-testid="stAppViewContainer"] {
         background-color: #1e1e1e !important;
-        color: #FFFF00 !important;
+        color: #0047AB !important;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
-    /* Força que todos os elementos tenham texto amarelo neon */
     html, body, [data-testid="stAppViewContainer"] * {
-        color: #FFFF00 !important;
+        color: #0047AB !important;
     }
-    /* Títulos (h1-h6) em amarelo neon */
+    /* Títulos (h1-h6) em azul cobalto */
     h1, h2, h3, h4, h5, h6 {
-        color: #FFFF00 !important;
+        color: #0047AB !important;
     }
-    /* Sidebar com fundo escuro */
+    /* Sidebar escura */
     [data-testid="stSidebar"] {
         background-color: #232323 !important;
     }
     /* Título da sidebar */
     [data-testid="stSidebar"] .css-1d391kg {
-        color: #FFFF00 !important;
+        color: #0047AB !important;
         font-weight: bold !important;
     }
     /* Inputs, sliders, etc. */
     input, .st-bj, .st-at, .stTextInput, .stDateInput {
         background-color: #2d2d2d !important;
-        border: 1px solid #FFFF00 !important;
+        border: 1px solid #0047AB !important;
     }
     /* Botões */
     .stButton > button {
-        background-color: #FFFF00 !important;
-        color: #000000 !important;
+        background-color: #0047AB !important;
+        color: #FFFFFF !important;
         border-radius: 8px !important;
         font-weight: bold !important;
         border: none !important;
@@ -67,9 +66,9 @@ st.markdown("""
     .stMetric-value {
         font-size: 1.5rem !important;
     }
-    /* Separador */
+    /* Separador (hr) */
     hr {
-        border: 1px solid #FFFF00;
+        border: 1px solid #0047AB;
     }
     
     /* ================================
@@ -78,37 +77,37 @@ st.markdown("""
     /* Container principal do uploader */
     [data-testid="stFileUploader"] {
         background-color: #000000 !important;
-        border: 1px solid #FFFF00 !important;
+        border: 1px solid #0047AB !important;
         border-radius: 5px;
         padding: 10px;
     }
     [data-testid="stFileUploader"] * {
-        color: #FFFF00 !important;
+        color: #0047AB !important;
     }
     /* Área de drop (dropzone) */
     [data-testid="stFileUploadDropzone"] {
         background-color: #232323 !important;
-        border: 1px dashed #FFFF00 !important;
+        border: 1px dashed #0047AB !important;
         border-radius: 5px;
     }
     [data-testid="stFileUploadDropzone"] * {
-        color: #FFFF00 !important;
+        color: #0047AB !important;
     }
-    /* Label/botão "Browse files" */
+    /* Label do botão "Browse files" */
     [data-testid="stFileUploadLabel"] {
         background-color: #232323 !important;
-        color: #FFFF00 !important;
+        color: #0047AB !important;
     }
     [data-testid="stFileUploadLabel"] * {
-        color: #FFFF00 !important;
+        color: #0047AB !important;
     }
-    /* Instruções (ex.: "Drag and drop file here") */
+    /* Instruções do uploader (ex.: "Drag and drop file here") */
     [data-testid="stFileUploadInstructions"] {
         background-color: #232323 !important;
-        color: #FFFF00 !important;
+        color: #0047AB !important;
     }
     [data-testid="stFileUploadInstructions"] * {
-        color: #FFFF00 !important;
+        color: #0047AB !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -181,7 +180,7 @@ if df is not None:
     
     # Aba Resumo
     with tab1:
-        st.markdown("<h2 style='color:#FFFF00;'>Resumo por Conta Contábil</h2>", unsafe_allow_html=True)
+        st.markdown("<h2 style='color:#0047AB;'>Resumo por Conta Contábil</h2>", unsafe_allow_html=True)
     
         df['Mês/Ano'] = df['Data'].dt.to_period('M').astype(str)
         resumo = df.groupby(['ContaContabil', 'Mês/Ano'])['Valor'].sum().reset_index()
@@ -190,22 +189,22 @@ if df is not None:
         resumo_pivot['Total'] = resumo_pivot.sum(axis=1)
         resumo_pivot.sort_values(by='Total', ascending=False, inplace=True)
     
-        # Estilizando a tabela: cabeçalho e índice em neon amarelo, fundo preto, corpo com texto amarelo
+        # Tabela estilizada: cabeçalho e índice em azul cobalto, fundo preto, corpo com texto em azul cobalto
         resumo_pivot_styled = (
             resumo_pivot
             .style
             .set_table_styles([
                 {'selector': 'thead tr th',
                  'props': [('background-color', '#000000'),
-                           ('color', '#FFFF00'),
+                           ('color', '#0047AB'),
                            ('font-weight', 'bold')]},
                 {'selector': 'tbody tr th',
                  'props': [('background-color', '#000000'),
-                           ('color', '#FFFF00'),
+                           ('color', '#0047AB'),
                            ('font-weight', 'bold')]},
                 {'selector': 'tbody tr td',
                  'props': [('background-color', '#000000'),
-                           ('color', '#FFFF00')]}
+                           ('color', '#0047AB')]}
             ])
             .format(lambda x: formata_valor_brasil(x))
         )
@@ -213,7 +212,7 @@ if df is not None:
     
     # Aba Dados
     with tab2:
-        st.markdown("<h2 style='color:#FFFF00;'>Dados Importados</h2>", unsafe_allow_html=True)
+        st.markdown("<h2 style='color:#0047AB;'>Dados Importados</h2>", unsafe_allow_html=True)
     
         df_sorted = df.sort_values(by='Valor', ascending=False)
     
@@ -223,15 +222,15 @@ if df is not None:
             .set_table_styles([
                 {'selector': 'thead tr th',
                  'props': [('background-color', '#000000'),
-                           ('color', '#FFFF00'),
+                           ('color', '#0047AB'),
                            ('font-weight', 'bold')]},
                 {'selector': 'tbody tr th',
                  'props': [('background-color', '#000000'),
-                           ('color', '#FFFF00'),
+                           ('color', '#0047AB'),
                            ('font-weight', 'bold')]},
                 {'selector': 'tbody tr td',
                  'props': [('background-color', '#000000'),
-                           ('color', '#FFFF00')]}
+                           ('color', '#0047AB')]}
             ])
             .format({'Valor': lambda x: formata_valor_brasil(x)})
         )
@@ -259,7 +258,7 @@ if df is not None:
                 showlegend=False,
                 plot_bgcolor='rgba(0,0,0,0)',
                 paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(color="#FFFF00")
+                font=dict(color="#0047AB")
             )
             fig_entradas.update_yaxes(tickprefix="R$ ", tickformat=",.2f")
             st.plotly_chart(fig_entradas, use_container_width=True)
@@ -287,7 +286,7 @@ if df is not None:
                 showlegend=False,
                 plot_bgcolor='rgba(0,0,0,0)',
                 paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(color="#FFFF00")
+                font=dict(color="#0047AB")
             )
             fig_saidas.update_xaxes(tickprefix="R$ ", tickformat=",.2f")
             st.plotly_chart(fig_saidas, use_container_width=True)
@@ -318,13 +317,13 @@ if df is not None:
             fig_dre.update_layout(
                 plot_bgcolor='rgba(0,0,0,0)',
                 paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(color="#FFFF00")
+                font=dict(color="#0047AB")
             )
             st.plotly_chart(fig_dre, use_container_width=True)
         else:
             st.write("Não há dados suficientes para exibir o gráfico de Entradas x Saídas.")
     
-        st.subheader("Comparação: (Receita Vendas ML + SH) x (Impostos - DAS Simples Nacional)")
+        st.subheader("Comparação: (Receita Vendas ML + SH) vs (Impostos - DAS Simples Nacional)")
         df_receitas = df[df['ContaContabil'].isin(['Receita Vendas ML', 'Receita Vendas SH'])]
         df_receitas_mensal = df_receitas.groupby('Mês/Ano')['Valor'].sum().reset_index()
         df_receitas_mensal.rename(columns={'Valor': 'Receitas'}, inplace=True)
@@ -356,7 +355,7 @@ if df is not None:
             fig_comp.update_layout(
                 plot_bgcolor='rgba(0,0,0,0)',
                 paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(color="#FFFF00")
+                font=dict(color="#0047AB")
             )
             st.plotly_chart(fig_comp, use_container_width=True)
         else:
