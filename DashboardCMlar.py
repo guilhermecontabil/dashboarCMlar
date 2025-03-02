@@ -15,14 +15,14 @@ def formata_valor_brasil(valor):
         return ""
     return f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
-# CSS global revisado:
+# CSS global revisado com estilos para o File Uploader
 st.markdown("""
     <style>
     /* Regra universal: força a cor branca para todos os elementos */
     html, body, [data-testid="stAppViewContainer"] * {
         color: #FFFFFF !important;
     }
-    /* Estabelece o fundo dark global e fontes padrão */
+    /* Fundo global dark */
     html, body, [data-testid="stAppViewContainer"], .main, .block-container {
         background-color: #1e1e1e !important;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -32,11 +32,7 @@ st.markdown("""
         color: #00FF7F !important;
         text-shadow: none !important;
     }
-    /* Cartões (métricas): títulos e valores em branco (forçados pela regra universal)
-       Se desejar os valores em verde neon, descomente as linhas abaixo:
-       .stMetric-label { color: #FFFFFF !important; font-weight: bold; }
-       .stMetric-value { color: #FFFFFF !important; font-size: 1.5rem !important; }
-    */
+    /* Cartões (métricas) */
     .stMetric-label {
         font-weight: bold !important;
     }
@@ -71,6 +67,16 @@ st.markdown("""
     /* Separador (hr) */
     hr {
         border: 1px solid #00FF7F;
+    }
+    /* Estilização do File Uploader */
+    [data-testid="stFileUploader"] {
+        background-color: #2d2d2d !important;
+        border: 1px solid #00FF7F !important;
+        padding: 10px;
+        border-radius: 5px;
+    }
+    [data-testid="stFileUploader"] * {
+        color: #FFFFFF !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -154,7 +160,7 @@ if df is not None:
         resumo_pivot['Total'] = resumo_pivot.sum(axis=1)
         resumo_pivot.sort_values(by='Total', ascending=False, inplace=True)
     
-        # Styler: cabeçalho e índice com texto em verde neon, fundo preto; corpo com texto branco.
+        # Styler: cabeçalho e índice em verde neon; fundo preto; corpo com texto branco
         resumo_pivot_styled = (
             resumo_pivot
             .style
