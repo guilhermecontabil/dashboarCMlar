@@ -14,24 +14,27 @@ def formata_valor_brasil(valor):
         return ""
     return f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
-# CSS Global para forçar fundo dark e fonte em azul cobalto (#0047AB)
+# CSS Global para forçar fundo dark e todas as fontes em verde negrito (#00FF00)
 st.markdown("""
     <style>
     /* ================================
        1) REGRAS GLOBAIS
        ================================ */
-    /* Fundo escuro e texto em azul cobalto em todo o app */
     html, body, [data-testid="stAppViewContainer"] {
         background-color: #1e1e1e !important;
-        color: #0047AB !important;
+        color: #00FF00 !important;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        font-weight: bold !important;
     }
+    /* Forçar que todos os elementos herdem a cor verde negrito */
     html, body, [data-testid="stAppViewContainer"] * {
-        color: #0047AB !important;
+        color: #00FF00 !important;
+        font-weight: bold !important;
     }
-    /* Títulos (h1-h6) em azul cobalto */
+    /* Títulos (h1-h6) */
     h1, h2, h3, h4, h5, h6 {
-        color: #0047AB !important;
+        color: #00FF00 !important;
+        font-weight: bold !important;
     }
     /* Sidebar escura */
     [data-testid="stSidebar"] {
@@ -39,18 +42,18 @@ st.markdown("""
     }
     /* Título da sidebar */
     [data-testid="stSidebar"] .css-1d391kg {
-        color: #0047AB !important;
+        color: #00FF00 !important;
         font-weight: bold !important;
     }
     /* Inputs, sliders, etc. */
     input, .st-bj, .st-at, .stTextInput, .stDateInput {
         background-color: #2d2d2d !important;
-        border: 1px solid #0047AB !important;
+        border: 1px solid #00FF00 !important;
     }
     /* Botões */
     .stButton > button {
-        background-color: #0047AB !important;
-        color: #FFFFFF !important;
+        background-color: #00FF00 !important;
+        color: #000000 !important;
         border-radius: 8px !important;
         font-weight: bold !important;
         border: none !important;
@@ -65,10 +68,11 @@ st.markdown("""
     }
     .stMetric-value {
         font-size: 1.5rem !important;
+        font-weight: bold !important;
     }
     /* Separador (hr) */
     hr {
-        border: 1px solid #0047AB;
+        border: 1px solid #00FF00;
     }
     
     /* ================================
@@ -77,37 +81,41 @@ st.markdown("""
     /* Container principal do uploader */
     [data-testid="stFileUploader"] {
         background-color: #000000 !important;
-        border: 1px solid #0047AB !important;
+        border: 1px solid #00FF00 !important;
         border-radius: 5px;
         padding: 10px;
     }
     [data-testid="stFileUploader"] * {
-        color: #0047AB !important;
+        color: #00FF00 !important;
+        font-weight: bold !important;
     }
     /* Área de drop (dropzone) */
     [data-testid="stFileUploadDropzone"] {
         background-color: #232323 !important;
-        border: 1px dashed #0047AB !important;
+        border: 1px dashed #00FF00 !important;
         border-radius: 5px;
     }
     [data-testid="stFileUploadDropzone"] * {
-        color: #0047AB !important;
+        color: #00FF00 !important;
+        font-weight: bold !important;
     }
     /* Label do botão "Browse files" */
     [data-testid="stFileUploadLabel"] {
         background-color: #232323 !important;
-        color: #0047AB !important;
+        color: #00FF00 !important;
     }
     [data-testid="stFileUploadLabel"] * {
-        color: #0047AB !important;
+        color: #00FF00 !important;
+        font-weight: bold !important;
     }
     /* Instruções do uploader (ex.: "Drag and drop file here") */
     [data-testid="stFileUploadInstructions"] {
         background-color: #232323 !important;
-        color: #0047AB !important;
+        color: #00FF00 !important;
     }
     [data-testid="stFileUploadInstructions"] * {
-        color: #0047AB !important;
+        color: #00FF00 !important;
+        font-weight: bold !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -180,7 +188,7 @@ if df is not None:
     
     # Aba Resumo
     with tab1:
-        st.markdown("<h2 style='color:#0047AB;'>Resumo por Conta Contábil</h2>", unsafe_allow_html=True)
+        st.markdown("<h2 style='color:#00FF00;'>Resumo por Conta Contábil</h2>", unsafe_allow_html=True)
     
         df['Mês/Ano'] = df['Data'].dt.to_period('M').astype(str)
         resumo = df.groupby(['ContaContabil', 'Mês/Ano'])['Valor'].sum().reset_index()
@@ -189,22 +197,22 @@ if df is not None:
         resumo_pivot['Total'] = resumo_pivot.sum(axis=1)
         resumo_pivot.sort_values(by='Total', ascending=False, inplace=True)
     
-        # Tabela estilizada: cabeçalho e índice em azul cobalto, fundo preto, corpo com texto em azul cobalto
+        # Estilizando a tabela: cabeçalho e índice em verde negrito, fundo preto, corpo com texto verde
         resumo_pivot_styled = (
             resumo_pivot
             .style
             .set_table_styles([
                 {'selector': 'thead tr th',
                  'props': [('background-color', '#000000'),
-                           ('color', '#0047AB'),
+                           ('color', '#00FF00'),
                            ('font-weight', 'bold')]},
                 {'selector': 'tbody tr th',
                  'props': [('background-color', '#000000'),
-                           ('color', '#0047AB'),
+                           ('color', '#00FF00'),
                            ('font-weight', 'bold')]},
                 {'selector': 'tbody tr td',
                  'props': [('background-color', '#000000'),
-                           ('color', '#0047AB')]}
+                           ('color', '#00FF00')]}
             ])
             .format(lambda x: formata_valor_brasil(x))
         )
@@ -212,7 +220,7 @@ if df is not None:
     
     # Aba Dados
     with tab2:
-        st.markdown("<h2 style='color:#0047AB;'>Dados Importados</h2>", unsafe_allow_html=True)
+        st.markdown("<h2 style='color:#00FF00;'>Dados Importados</h2>", unsafe_allow_html=True)
     
         df_sorted = df.sort_values(by='Valor', ascending=False)
     
@@ -222,15 +230,15 @@ if df is not None:
             .set_table_styles([
                 {'selector': 'thead tr th',
                  'props': [('background-color', '#000000'),
-                           ('color', '#0047AB'),
+                           ('color', '#00FF00'),
                            ('font-weight', 'bold')]},
                 {'selector': 'tbody tr th',
                  'props': [('background-color', '#000000'),
-                           ('color', '#0047AB'),
+                           ('color', '#00FF00'),
                            ('font-weight', 'bold')]},
                 {'selector': 'tbody tr td',
                  'props': [('background-color', '#000000'),
-                           ('color', '#0047AB')]}
+                           ('color', '#00FF00')]}
             ])
             .format({'Valor': lambda x: formata_valor_brasil(x)})
         )
@@ -250,15 +258,14 @@ if df is not None:
                 color='ContaContabil',
                 title='Entradas por Conta Contábil',
                 labels={'Valor': 'Valor (R$)'},
-                template='plotly_dark',
-                color_discrete_sequence=px.colors.qualitative.Prism
+                template='plotly_dark'
             )
             fig_entradas.update_layout(
                 xaxis_tickangle=-45,
                 showlegend=False,
                 plot_bgcolor='rgba(0,0,0,0)',
                 paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(color="#0047AB")
+                font=dict(color="#00FF00", family="Segoe UI", size=12)
             )
             fig_entradas.update_yaxes(tickprefix="R$ ", tickformat=",.2f")
             st.plotly_chart(fig_entradas, use_container_width=True)
@@ -286,7 +293,7 @@ if df is not None:
                 showlegend=False,
                 plot_bgcolor='rgba(0,0,0,0)',
                 paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(color="#0047AB")
+                font=dict(color="#00FF00", family="Segoe UI", size=12)
             )
             fig_saidas.update_xaxes(tickprefix="R$ ", tickformat=",.2f")
             st.plotly_chart(fig_saidas, use_container_width=True)
@@ -317,7 +324,7 @@ if df is not None:
             fig_dre.update_layout(
                 plot_bgcolor='rgba(0,0,0,0)',
                 paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(color="#0047AB")
+                font=dict(color="#00FF00", family="Segoe UI", size=12)
             )
             st.plotly_chart(fig_dre, use_container_width=True)
         else:
@@ -355,7 +362,7 @@ if df is not None:
             fig_comp.update_layout(
                 plot_bgcolor='rgba(0,0,0,0)',
                 paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(color="#0047AB")
+                font=dict(color="#00FF00", family="Segoe UI", size=12)
             )
             st.plotly_chart(fig_comp, use_container_width=True)
         else:
