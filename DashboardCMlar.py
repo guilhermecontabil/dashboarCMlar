@@ -15,13 +15,16 @@ def formata_valor_brasil(valor):
         return ""
     return f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
-# CSS global: fundo dark, fontes brancas para descrições de cards, filtros e gráficos
+# CSS global revisado:
 st.markdown("""
     <style>
-    /* Fundo geral dark e texto branco para descrições */
+    /* Regra universal: força a cor branca para todos os elementos */
+    html, body, [data-testid="stAppViewContainer"] * {
+        color: #FFFFFF !important;
+    }
+    /* Estabelece o fundo dark global e fontes padrão */
     html, body, [data-testid="stAppViewContainer"], .main, .block-container {
         background-color: #1e1e1e !important;
-        color: #FFFFFF !important;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
     /* Títulos em verde neon */
@@ -29,13 +32,15 @@ st.markdown("""
         color: #00FF7F !important;
         text-shadow: none !important;
     }
-    /* Cartões (métricas) - descrições e valores em branco */
+    /* Cartões (métricas): títulos e valores em branco (forçados pela regra universal)
+       Se desejar os valores em verde neon, descomente as linhas abaixo:
+       .stMetric-label { color: #FFFFFF !important; font-weight: bold; }
+       .stMetric-value { color: #FFFFFF !important; font-size: 1.5rem !important; }
+    */
     .stMetric-label {
-        color: #FFFFFF !important;
-        font-weight: bold;
+        font-weight: bold !important;
     }
     .stMetric-value {
-        color: #FFFFFF !important;
         font-size: 1.5rem !important;
     }
     /* Botões */
@@ -61,7 +66,6 @@ st.markdown("""
     /* Inputs e Sliders (filtros) */
     input, .st-bj, .st-at, .stTextInput, .stDateInput {
         background-color: #2d2d2d !important;
-        color: #FFFFFF !important;
         border: 1px solid #00FF7F !important;
     }
     /* Separador (hr) */
@@ -150,7 +154,7 @@ if df is not None:
         resumo_pivot['Total'] = resumo_pivot.sum(axis=1)
         resumo_pivot.sort_values(by='Total', ascending=False, inplace=True)
     
-        # Styler: cabeçalho e índice em verde neon; fundo preto; corpo com texto branco
+        # Styler: cabeçalho e índice com texto em verde neon, fundo preto; corpo com texto branco.
         resumo_pivot_styled = (
             resumo_pivot
             .style
