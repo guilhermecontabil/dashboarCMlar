@@ -15,13 +15,13 @@ def formata_valor_brasil(valor):
         return ""
     return f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
-# CSS global para fundo dark, títulos e cards com fonte em verde neon
+# CSS global: fundo dark, fontes brancas para descrições de cards, filtros e gráficos
 st.markdown("""
     <style>
-    /* Fundo geral dark e texto claro */
+    /* Fundo geral dark e texto branco para descrições */
     html, body, [data-testid="stAppViewContainer"], .main, .block-container {
         background-color: #1e1e1e !important;
-        color: #f0f0f0 !important;
+        color: #FFFFFF !important;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
     /* Títulos em verde neon */
@@ -29,13 +29,13 @@ st.markdown("""
         color: #00FF7F !important;
         text-shadow: none !important;
     }
-    /* Cartões (métricas) */
+    /* Cartões (métricas) - descrições e valores em branco */
     .stMetric-label {
-        color: #00FF7F !important;
+        color: #FFFFFF !important;
         font-weight: bold;
     }
     .stMetric-value {
-        color: #00FF7F !important;
+        color: #FFFFFF !important;
         font-size: 1.5rem !important;
     }
     /* Botões */
@@ -58,10 +58,10 @@ st.markdown("""
         color: #00FF7F !important;
         font-weight: bold !important;
     }
-    /* Inputs e Sliders */
+    /* Inputs e Sliders (filtros) */
     input, .st-bj, .st-at, .stTextInput, .stDateInput {
         background-color: #2d2d2d !important;
-        color: #f0f0f0 !important;
+        color: #FFFFFF !important;
         border: 1px solid #00FF7F !important;
     }
     /* Separador (hr) */
@@ -150,7 +150,7 @@ if df is not None:
         resumo_pivot['Total'] = resumo_pivot.sum(axis=1)
         resumo_pivot.sort_values(by='Total', ascending=False, inplace=True)
     
-        # Aplica o Styler: Cabeçalho e rótulo de índice em verde neon, fundo preto e corpo com texto claro.
+        # Styler: cabeçalho e índice em verde neon; fundo preto; corpo com texto branco
         resumo_pivot_styled = (
             resumo_pivot
             .style
@@ -161,10 +161,11 @@ if df is not None:
                            ('font-weight', 'bold')]},
                 {'selector': 'tbody tr th',
                  'props': [('background-color', '#000000'),
-                           ('color', '#00FF7F')]},
+                           ('color', '#00FF7F'),
+                           ('font-weight', 'bold')]},
                 {'selector': 'tbody tr td',
                  'props': [('background-color', '#000000'),
-                           ('color', '#ffffff')]}
+                           ('color', '#FFFFFF')]}
             ])
             .format(lambda x: formata_valor_brasil(x))
         )
@@ -188,10 +189,11 @@ if df is not None:
                            ('font-weight', 'bold')]},
                 {'selector': 'tbody tr th',
                  'props': [('background-color', '#000000'),
-                           ('color', '#00FF7F')]},
+                           ('color', '#00FF7F'),
+                           ('font-weight', 'bold')]},
                 {'selector': 'tbody tr td',
                  'props': [('background-color', '#000000'),
-                           ('color', '#ffffff')]}
+                           ('color', '#FFFFFF')]}
             ])
             .format({'Valor': lambda x: formata_valor_brasil(x)})
         )
@@ -221,7 +223,7 @@ if df is not None:
                 showlegend=False,
                 plot_bgcolor='rgba(0,0,0,0)',
                 paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(color='#f0f0f0')
+                font=dict(color='#FFFFFF')
             )
             fig_entradas.update_yaxes(tickprefix="R$ ", tickformat=",.2f")
             st.plotly_chart(fig_entradas, use_container_width=True)
@@ -249,7 +251,7 @@ if df is not None:
                 showlegend=False,
                 plot_bgcolor='rgba(0,0,0,0)',
                 paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(color='#f0f0f0')
+                font=dict(color='#FFFFFF')
             )
             fig_saidas.update_xaxes(tickprefix="R$ ", tickformat=",.2f")
             st.plotly_chart(fig_saidas, use_container_width=True)
@@ -280,7 +282,7 @@ if df is not None:
             fig_dre.update_layout(
                 plot_bgcolor='rgba(0,0,0,0)',
                 paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(color='#f0f0f0')
+                font=dict(color='#FFFFFF')
             )
             st.plotly_chart(fig_dre, use_container_width=True)
         else:
@@ -318,7 +320,7 @@ if df is not None:
             fig_comp.update_layout(
                 plot_bgcolor='rgba(0,0,0,0)',
                 paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(color='#f0f0f0')
+                font=dict(color='#FFFFFF')
             )
             st.plotly_chart(fig_comp, use_container_width=True)
         else:
