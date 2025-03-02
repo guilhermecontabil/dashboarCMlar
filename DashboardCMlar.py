@@ -11,10 +11,6 @@ def convert_df(df):
     return df.to_csv(index=False).encode('utf-8')
 
 def formata_valor_brasil(valor):
-    """
-    Converte um número float em string no formato:
-    1.234,56 (ponto para milhar, vírgula para decimal)
-    """
     if pd.isnull(valor):
         return ""
     return f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
@@ -24,14 +20,14 @@ st.markdown("""
     <style>
     /* ======= LAYOUT GERAL ======= */
     html, body, [data-testid="stAppViewContainer"], .main, .block-container {
-        background-color: #1e1e1e !important; /* fundo dark */
+        background-color: #1e1e1e !important; /* fundo dark global */
         color: #f0f0f0 !important;            /* texto claro */
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
 
     /* ======= TÍTULOS ======= */
     h1, h2, h3, h4, h5, h6 {
-        color: #00FF7F !important; /* verde neon mais suave */
+        color: #00FF7F !important; /* verde neon */
         text-shadow: none !important;
     }
 
@@ -62,7 +58,7 @@ st.markdown("""
     [data-testid="stSidebar"] {
         background-color: #232323 !important;
     }
-    [data-testid="stSidebar"] .css-1d391kg {  /* título da sidebar */
+    [data-testid="stSidebar"] .css-1d391kg {  
         color: #00FF7F !important;
         font-weight: bold !important;
     }
@@ -76,8 +72,8 @@ st.markdown("""
 
     /* ======= DATAFRAMES / TABELAS ======= */
     .stDataFrame, .st-dataframe, .css-1ih547n {
-        background-color: #2d2d2d !important; /* fundo da tabela */
-        color: #ffffff !important;           /* texto dentro da tabela */
+        background-color: #2d2d2d !important; /* fundo padrão da tabela */
+        color: #ffffff !important;
     }
     table, th, td {
         border-color: #3f3f3f !important;
@@ -119,7 +115,6 @@ if df is not None:
     # --------------------------------
     # 3.2) FILTROS NA BARRA LATERAL
     # --------------------------------
-    # a) Filtro de datas
     min_date = df['Data'].min()
     max_date = df['Data'].max()
     selected_dates = st.sidebar.date_input("Selecione o intervalo de datas:", [min_date, max_date])
@@ -127,14 +122,12 @@ if df is not None:
         start_date, end_date = selected_dates
         df = df[(df['Data'] >= pd.to_datetime(start_date)) & (df['Data'] <= pd.to_datetime(end_date))]
 
-    # b) Filtro por GrupoDeConta
     if 'GrupoDeConta' in df.columns:
         grupos_unicos = df['GrupoDeConta'].dropna().unique()
         grupo_selecionado = st.sidebar.selectbox("🗂️ Filtrar por Grupo de Conta:", ["Todos"] + list(grupos_unicos))
         if grupo_selecionado != "Todos":
             df = df[df['GrupoDeConta'] == grupo_selecionado]
 
-    # c) Filtro por ContaContabil
     filtro_conta = st.sidebar.text_input("🔍 Filtrar Conta Contábil:")
     if filtro_conta:
         df = df[df['ContaContabil'].str.contains(filtro_conta, case=False, na=False)]
@@ -145,19 +138,13 @@ if df is not None:
     st.title("Dashboard Contábil")
     st.markdown("<hr>", unsafe_allow_html=True)
 
-    # Entradas (valores > 0)
     total_entradas = df[df['Valor'] > 0]['Valor'].sum()
-    # Saídas (valores < 0)
     total_saidas = df[df['Valor'] < 0]['Valor'].sum()
-    # Saldo
     saldo = total_entradas + total_saidas
 
-    # Compras de Mercadoria para Revenda
     total_compras_revenda = df[df['ContaContabil'] == 'Compras de Mercadoria para Revenda']['Valor'].sum()
-    # Impostos - DAS Simples Nacional
     total_das = df[df['ContaContabil'] == 'Impostos - DAS Simples Nacional']['Valor'].sum()
 
-    # Exibir métricas em duas linhas
     col1, col2, col3 = st.columns(3)
     col1.metric("Entradas (R$)", formata_valor_brasil(total_entradas))
     col2.metric("Saídas (R$)", formata_valor_brasil(abs(total_saidas)))
@@ -176,40 +163,40 @@ if df is not None:
     # 5.1) ABA: RESUMO
     # ----------------------------
     with tab1:
-        st.subheader("Resumo por Conta Contábil")
+        # Título em verde neon
+        st.markdown("<h2 style='color:#00FF7F;'>Resumo por Conta Contábil</h2>", unsafe_allow_html=True)
 
-        # Criar Mês/Ano e agrupar
         df['Mês/Ano'] = df['Data'].dt.to_period('M').astype(str)
         resumo = df.groupby(['ContaContabil', 'Mês/Ano'])['Valor'].sum().reset_index()
 
-        # Pivotar e ordenar
         resumo_pivot = resumo.pivot(index='ContaContabil', columns='Mês/Ano', values='Valor').fillna(0)
         resumo_pivot['Total'] = resumo_pivot.sum(axis=1)
         resumo_pivot.sort_values(by='Total', ascending=False, inplace=True)
 
+        # Aplicar fundo ainda mais escuro na tabela
         st.dataframe(
             resumo_pivot.style
             .format(lambda x: formata_valor_brasil(x))
-            .set_properties(**{'background-color': 'transparent', 'color': '#ffffff'})
+            .set_properties(**{'background-color': '#121212', 'color': '#ffffff'})
         )
 
     # ----------------------------
     # 5.2) ABA: DADOS
     # ----------------------------
     with tab2:
-        st.subheader("Dados Importados")
+        st.markdown("<h2 style='color:#00FF7F;'>Dados Importados</h2>", unsafe_allow_html=True)
+
         df_sorted = df.sort_values(by='Valor', ascending=False)
         st.dataframe(
             df_sorted.style
             .format({'Valor': lambda x: formata_valor_brasil(x)})
-            .set_properties(**{'background-color': 'transparent', 'color': '#ffffff'})
+            .set_properties(**{'background-color': '#121212', 'color': '#ffffff'})
         )
 
     # ----------------------------
     # 5.3) ABA: GRÁFICOS
     # ----------------------------
     with tab3:
-        # a) Entradas (valores > 0)
         st.subheader("Entradas (Valores Positivos)")
         df_positivo = df[df['Valor'] > 0]
         df_positivo_agrupado = df_positivo.groupby('ContaContabil')['Valor'].sum().reset_index()
@@ -237,7 +224,6 @@ if df is not None:
         else:
             st.write("Não há valores positivos para exibir.")
 
-        # b) Saídas (valores < 0)
         st.subheader("Saídas (Valores Negativos)")
         df_negativo = df[df['Valor'] < 0]
         df_negativo_agrupado = df_negativo.groupby('ContaContabil')['Valor'].sum().abs().reset_index()
@@ -266,7 +252,6 @@ if df is not None:
         else:
             st.write("Não há valores negativos para exibir.")
 
-        # c) Entradas x Saídas (por Mês/Ano)
         st.subheader("Entradas x Saídas (por Mês/Ano)")
         df_entradas_mensal = df[df['Valor'] > 0].groupby('Mês/Ano')['Valor'].sum().reset_index()
         df_saidas_mensal = df[df['Valor'] < 0].groupby('Mês/Ano')['Valor'].sum().reset_index()
@@ -297,14 +282,13 @@ if df is not None:
         else:
             st.write("Não há dados suficientes para exibir o gráfico de Entradas x Saídas.")
 
-        # d) Comparação: (Receita Vendas ML + SH) vs (Impostos - DAS Simples Nacional)
         st.subheader("Comparação: (Receita Vendas ML + SH) x (Impostos - DAS Simples Nacional)")
         df_receitas = df[df['ContaContabil'].isin(['Receita Vendas ML', 'Receita Vendas SH'])]
         df_receitas_mensal = df_receitas.groupby('Mês/Ano')['Valor'].sum().reset_index()
         df_receitas_mensal.rename(columns={'Valor': 'Receitas'}, inplace=True)
 
         df_impostos = df[df['ContaContabil'] == 'Impostos - DAS Simples Nacional'].copy()
-        df_impostos['Valor'] = df_impostos['Valor'].abs()  # exibir sempre positivo
+        df_impostos['Valor'] = df_impostos['Valor'].abs()
         df_impostos_mensal = df_impostos.groupby('Mês/Ano')['Valor'].sum().reset_index()
         df_impostos_mensal.rename(columns={'Valor': 'Impostos'}, inplace=True)
 
