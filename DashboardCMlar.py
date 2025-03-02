@@ -15,35 +15,35 @@ def formata_valor_brasil(valor):
         return ""
     return f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
-# CSS customizado para tema dark, headers em verde e cards com fonte neon
+# CSS global para fundo dark e cores gerais
 st.markdown("""
     <style>
-    /* ======= LAYOUT GERAL ======= */
+    /* Fundo geral dark e texto claro */
     html, body, [data-testid="stAppViewContainer"], .main, .block-container {
-        background-color: #1e1e1e !important; /* fundo dark global */
-        color: #f0f0f0 !important;            /* texto claro */
+        background-color: #1e1e1e !important;
+        color: #f0f0f0 !important;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
 
-    /* ======= TÍTULOS (H1..H6) ======= */
+    /* Títulos em verde neon */
     h1, h2, h3, h4, h5, h6 {
-        color: #00FF7F !important; /* verde neon */
+        color: #00FF7F !important;
         text-shadow: none !important;
     }
 
-    /* ======= MÉTRICAS (CARTÕES) ======= */
+    /* Cartões (métricas) */
     .stMetric-label {
-        color: #00FF7F !important;   /* título do cartão */
+        color: #00FF7F !important;
         font-weight: bold;
     }
     .stMetric-value {
-        color: #00FF7F !important;   /* valor do cartão (verde neon) */
+        color: #00FF7F !important;
         font-size: 1.5rem !important;
     }
 
-    /* ======= BOTÕES ======= */
+    /* Botões */
     .stButton > button {
-        background-color: #00FF7F !important; /* verde neon */
+        background-color: #00FF7F !important;
         color: #000000 !important;
         border-radius: 8px !important;
         font-weight: bold !important;
@@ -54,40 +54,23 @@ st.markdown("""
         transform: scale(1.03);
     }
 
-    /* ======= SIDEBAR ======= */
+    /* Sidebar */
     [data-testid="stSidebar"] {
-        background-color: #232323 !important;  /* fundo dark para a sidebar */
+        background-color: #232323 !important;
     }
     [data-testid="stSidebar"] .css-1d391kg {
         color: #00FF7F !important;
         font-weight: bold !important;
     }
 
-    /* ======= CAMPOS DE TEXTO, INPUTS, SLIDERS ======= */
+    /* Inputs e Sliders */
     input, .st-bj, .st-at, .stTextInput, .stDateInput {
         background-color: #2d2d2d !important;
         color: #f0f0f0 !important;
         border: 1px solid #00FF7F !important;
     }
 
-    /* ======= DATAFRAMES / TABELAS ======= */
-    .stDataFrame, .st-dataframe, .css-1ih547n {
-        background-color: #1e1e1e !important; /* fundo da tabela */
-        color: #f0f0f0 !important;
-    }
-    /* Cabeçalho da tabela (thead) */
-    .stDataFrame thead tr th, .st-dataframe thead tr th {
-        background-color: #121212 !important;  /* fundo dark do header */
-        color: #00FF7F !important;            /* texto verde neon */
-        font-weight: bold !important;
-    }
-
-    /* Borda das células da tabela */
-    table, th, td {
-        border-color: #3f3f3f !important;
-    }
-
-    /* ======= SEPARADOR (HR) ======= */
+    /* Separador (hr) */
     hr {
         border: 1px solid #00FF7F;
     }
@@ -116,13 +99,11 @@ else:
 # 3) EXECUÇÃO DO DASHBOARD (SE HOUVER DF)
 # ------------------------------------
 if df is not None:
-    # 3.1) Conversões de tipo
+    # Conversões de tipo
     df['Data'] = pd.to_datetime(df['Data'], dayfirst=True, errors='coerce')
     df['Valor'] = pd.to_numeric(df['Valor'], errors='coerce')
 
-    # --------------------------------
-    # 3.2) FILTROS NA BARRA LATERAL
-    # --------------------------------
+    # FILTROS
     min_date = df['Data'].min()
     max_date = df['Data'].max()
     selected_dates = st.sidebar.date_input("Selecione o intervalo de datas:", [min_date, max_date])
@@ -140,20 +121,16 @@ if df is not None:
     if filtro_conta:
         df = df[df['ContaContabil'].str.contains(filtro_conta, case=False, na=False)]
 
-    # --------------------------------
-    # 4) CABEÇALHO E MÉTRICAS
-    # --------------------------------
+    # CABEÇALHO E MÉTRICAS
     st.title("Dashboard Contábil")
     st.markdown("<hr>", unsafe_allow_html=True)
 
     total_entradas = df[df['Valor'] > 0]['Valor'].sum()
     total_saidas = df[df['Valor'] < 0]['Valor'].sum()
     saldo = total_entradas + total_saidas
-
     total_compras_revenda = df[df['ContaContabil'] == 'Compras de Mercadoria para Revenda']['Valor'].sum()
     total_das = df[df['ContaContabil'] == 'Impostos - DAS Simples Nacional']['Valor'].sum()
 
-    # Métricas com emojis (exemplo)
     col1, col2, col3 = st.columns(3)
     col1.metric("Entradas (R$) 💵", formata_valor_brasil(total_entradas))
     col2.metric("Saídas (R$) 💸", formata_valor_brasil(abs(total_saidas)))
@@ -163,14 +140,12 @@ if df is not None:
     col4.metric("Compras de Mercadoria 🛒", formata_valor_brasil(total_compras_revenda))
     col5.metric("Impostos (DAS) 🧾", formata_valor_brasil(total_das))
 
-    # --------------------------------
-    # 5) CRIAÇÃO DAS ABAS
-    # --------------------------------
+    # ABAS
     tab1, tab2, tab3, tab4 = st.tabs(["📊 Resumo", "📄 Dados", "📈 Gráficos", "💾 Exportação"])
 
-    # ----------------------------
-    # 5.1) ABA: RESUMO
-    # ----------------------------
+    # ==========================
+    # ABA 1: RESUMO
+    # ==========================
     with tab1:
         st.markdown("<h2 style='color:#00FF7F;'>Resumo por Conta Contábil</h2>", unsafe_allow_html=True)
 
@@ -181,34 +156,55 @@ if df is not None:
         resumo_pivot['Total'] = resumo_pivot.sum(axis=1)
         resumo_pivot.sort_values(by='Total', ascending=False, inplace=True)
 
-        st.dataframe(
-            resumo_pivot.style
+        # ======= APLICA O STYLER COM FUNDO PRETO E TEXTO VERDE/BRANCO =======
+        resumo_pivot_styled = (
+            resumo_pivot
+            .style
+            .set_table_styles([
+                # Cabeçalho da tabela
+                {'selector': 'thead', 
+                 'props': [('background-color', '#000000'),
+                           ('color', '#00FF7F'),
+                           ('font-weight', 'bold')]},
+                # Corpo da tabela
+                {'selector': 'tbody',
+                 'props': [('background-color', '#000000'),
+                           ('color', '#ffffff')]}
+            ])
             .format(lambda x: formata_valor_brasil(x))
-            .set_properties(**{
-                'background-color': '#1e1e1e',
-                'color': '#f0f0f0'
-            })
         )
+        # Usamos st.table para garantir que o estilo seja aplicado
+        st.table(resumo_pivot_styled)
 
-    # ----------------------------
-    # 5.2) ABA: DADOS
-    # ----------------------------
+    # ==========================
+    # ABA 2: DADOS
+    # ==========================
     with tab2:
         st.markdown("<h2 style='color:#00FF7F;'>Dados Importados</h2>", unsafe_allow_html=True)
 
         df_sorted = df.sort_values(by='Valor', ascending=False)
-        st.dataframe(
-            df_sorted.style
-            .format({'Valor': lambda x: formata_valor_brasil(x)})
-            .set_properties(**{
-                'background-color': '#1e1e1e',
-                'color': '#f0f0f0'
-            })
-        )
 
-    # ----------------------------
-    # 5.3) ABA: GRÁFICOS
-    # ----------------------------
+        df_sorted_styled = (
+            df_sorted
+            .style
+            .set_table_styles([
+                # Cabeçalho da tabela
+                {'selector': 'thead',
+                 'props': [('background-color', '#000000'),
+                           ('color', '#00FF7F'),
+                           ('font-weight', 'bold')]},
+                # Corpo da tabela
+                {'selector': 'tbody',
+                 'props': [('background-color', '#000000'),
+                           ('color', '#ffffff')]}
+            ])
+            .format({'Valor': lambda x: formata_valor_brasil(x)})
+        )
+        st.table(df_sorted_styled)
+
+    # ==========================
+    # ABA 3: GRÁFICOS
+    # ==========================
     with tab3:
         st.subheader("Entradas (Valores Positivos)")
         df_positivo = df[df['Valor'] > 0]
@@ -333,9 +329,9 @@ if df is not None:
         else:
             st.write("Não há dados para gerar a comparação entre Receitas e Impostos (DAS).")
 
-    # ----------------------------
-    # 5.4) ABA: EXPORTAÇÃO
-    # ----------------------------
+    # ==========================
+    # ABA 4: EXPORTAÇÃO
+    # ==========================
     with tab4:
         st.subheader("Exportar Resumo")
         resumo2 = df.groupby(['ContaContabil', 'Mês/Ano'])['Valor'].sum().reset_index()
