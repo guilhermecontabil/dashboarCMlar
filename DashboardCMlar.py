@@ -9,125 +9,63 @@ def convert_df(df):
     return df.to_csv(index=False).encode('utf-8')
 
 def formata_valor_brasil(valor):
-    """Converte float para formato brasileiro (1.234,56)."""
+    """Converte float para o formato brasileiro (1.234,56)."""
     if pd.isnull(valor):
         return ""
     return f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
-# CSS Global para forçar fundo dark e todas as fontes em verde negrito (#00FF00)
+# CSS Global: força fundo escuro e texto branco em toda a dashboard
 st.markdown("""
     <style>
-    /* ================================
-       1) REGRAS GLOBAIS
-       ================================ */
+    /* Força TODOS os elementos a terem texto branco */
+    * {
+      color: #FFFFFF !important;
+    }
+    /* Define o fundo escuro para o app */
     html, body, [data-testid="stAppViewContainer"] {
-        background-color: #1e1e1e !important;
-        color: #00FF00 !important;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        font-weight: bold !important;
+      background-color: #1e1e1e !important;
     }
-    html, body, [data-testid="stAppViewContainer"] * {
-        color: #00FF00 !important;
-        font-weight: bold !important;
-    }
-    h1, h2, h3, h4, h5, h6 {
-        color: #00FF00 !important;
-        font-weight: bold !important;
-    }
-    /* Sidebar */
+    /* Sidebar com fundo escuro */
     [data-testid="stSidebar"] {
-        background-color: #232323 !important;
+      background-color: #232323 !important;
     }
-    [data-testid="stSidebar"] .css-1d391kg {
-        color: #00FF00 !important;
-        font-weight: bold !important;
-    }
-    /* Inputs e sliders */
-    input, .st-bj, .st-at, .stTextInput {
-        background-color: #2d2d2d !important;
-        border: 1px solid #00FF00 !important;
-    }
-    /* ================================
-       1.1) Ajustes para o Date Input (datepicker)
-       ================================ */
-    /* Geralmente o datepicker é gerado pelo BaseWeb, usamos o data-baseweb para selecionar */
-    div[data-baseweb="datepicker"] {
-        background-color: #2d2d2d !important;
-        color: #00FF00 !important;
-        border: 1px solid #00FF00 !important;
-        border-radius: 5px !important;
-        padding: 5px;
-    }
-    div[data-baseweb="datepicker"] input {
-        background-color: #2d2d2d !important;
-        color: #00FF00 !important;
-        border: 1px solid #00FF00 !important;
-    }
-    div[data-baseweb="datepicker"] input::placeholder {
-        color: #00FF00 !important;
-    }
-    /* ================================
-       2) BOTÕES, CARTÕES E SEPARADOR
-       ================================ */
-    .stButton > button {
-        background-color: #00FF00 !important;
-        color: #000000 !important;
-        border-radius: 8px !important;
-        font-weight: bold !important;
-        border: none !important;
-        transition: transform 0.2s;
-    }
-    .stButton > button:hover {
-        transform: scale(1.03);
-    }
-    .stMetric-label {
-        font-weight: bold !important;
-    }
-    .stMetric-value {
-        font-size: 1.5rem !important;
-        font-weight: bold !important;
-    }
-    hr {
-        border: 1px solid #00FF00;
-    }
-    /* ================================
-       3) FILE UPLOADER ESTILIZADO
-       ================================ */
+    /* File Uploader */
     [data-testid="stFileUploader"] {
-        background-color: #000000 !important;
-        border: 1px solid #00FF00 !important;
-        border-radius: 5px;
-        padding: 10px;
+      background-color: #000000 !important;
+      border: 1px solid #FFFFFF !important;
+      border-radius: 5px;
+      padding: 10px;
     }
     [data-testid="stFileUploader"] * {
-        color: #00FF00 !important;
-        font-weight: bold !important;
+      color: #FFFFFF !important;
     }
     [data-testid="stFileUploadDropzone"] {
-        background-color: #232323 !important;
-        border: 1px dashed #00FF00 !important;
-        border-radius: 5px;
+      background-color: #232323 !important;
+      border: 1px dashed #FFFFFF !important;
+      border-radius: 5px;
     }
     [data-testid="stFileUploadDropzone"] * {
-        color: #00FF00 !important;
-        font-weight: bold !important;
+      color: #FFFFFF !important;
     }
-    [data-testid="stFileUploadLabel"] {
-        background-color: #232323 !important;
-        color: #00FF00 !important;
+    /* Inputs, Datepickers, etc. */
+    input, .stTextInput, .stDateInput {
+      background-color: #2d2d2d !important;
+      border: 1px solid #FFFFFF !important;
+      color: #FFFFFF !important;
     }
-    [data-testid="stFileUploadLabel"] * {
-        color: #00FF00 !important;
-        font-weight: bold !important;
+    /* Botões */
+    .stButton > button {
+      background-color: #FFFFFF !important;
+      color: #000000 !important;
+      border-radius: 8px !important;
+      font-weight: bold !important;
+      border: none !important;
+      transition: transform 0.2s;
     }
-    [data-testid="stFileUploadInstructions"] {
-        background-color: #232323 !important;
-        color: #00FF00 !important;
+    .stButton > button:hover {
+      transform: scale(1.03);
     }
-    [data-testid="stFileUploadInstructions"] * {
-        color: #00FF00 !important;
-        font-weight: bold !important;
-    }
+    /* Estilização adicional para tabelas via pandas Styler (será aplicado manualmente) */
     </style>
 """, unsafe_allow_html=True)
 
@@ -181,10 +119,9 @@ if df is not None:
     total_entradas = df[df['Valor'] > 0]['Valor'].sum()
     total_saidas = df[df['Valor'] < 0]['Valor'].sum()
     saldo = total_entradas + total_saidas
-
     total_compras_revenda = df[df['ContaContabil'] == 'Compras de Mercadoria para Revenda']['Valor'].sum()
     total_das = df[df['ContaContabil'] == 'Impostos - DAS Simples Nacional']['Valor'].sum()
-
+    
     col1, col2, col3 = st.columns(3)
     col1.metric("Entradas (R$) 💵", formata_valor_brasil(total_entradas))
     col2.metric("Saídas (R$) 💸", formata_valor_brasil(abs(total_saidas)))
@@ -199,31 +136,29 @@ if df is not None:
     
     # Aba Resumo
     with tab1:
-        st.markdown("<h2 style='color:#00FF00;'>Resumo por Conta Contábil</h2>", unsafe_allow_html=True)
-    
+        st.markdown("<h2>Resumo por Conta Contábil</h2>", unsafe_allow_html=True)
         df['Mês/Ano'] = df['Data'].dt.to_period('M').astype(str)
         resumo = df.groupby(['ContaContabil', 'Mês/Ano'])['Valor'].sum().reset_index()
-    
         resumo_pivot = resumo.pivot(index='ContaContabil', columns='Mês/Ano', values='Valor').fillna(0)
         resumo_pivot['Total'] = resumo_pivot.sum(axis=1)
         resumo_pivot.sort_values(by='Total', ascending=False, inplace=True)
-    
-        # Tabela estilizada: cabeçalho e índice em verde negrito, fundo preto, corpo com texto verde
+        
+        # Tabela com fundo preto e texto branco (forçado via CSS inline com pandas Styler)
         resumo_pivot_styled = (
             resumo_pivot
             .style
             .set_table_styles([
                 {'selector': 'thead tr th',
                  'props': [('background-color', '#000000'),
-                           ('color', '#00FF00'),
+                           ('color', '#FFFFFF'),
                            ('font-weight', 'bold')]},
                 {'selector': 'tbody tr th',
                  'props': [('background-color', '#000000'),
-                           ('color', '#00FF00'),
+                           ('color', '#FFFFFF'),
                            ('font-weight', 'bold')]},
                 {'selector': 'tbody tr td',
                  'props': [('background-color', '#000000'),
-                           ('color', '#00FF00')]}
+                           ('color', '#FFFFFF')]}
             ])
             .format(lambda x: formata_valor_brasil(x))
         )
@@ -231,25 +166,23 @@ if df is not None:
     
     # Aba Dados
     with tab2:
-        st.markdown("<h2 style='color:#00FF00;'>Dados Importados</h2>", unsafe_allow_html=True)
-    
+        st.markdown("<h2>Dados Importados</h2>", unsafe_allow_html=True)
         df_sorted = df.sort_values(by='Valor', ascending=False)
-    
         df_sorted_styled = (
             df_sorted
             .style
             .set_table_styles([
                 {'selector': 'thead tr th',
                  'props': [('background-color', '#000000'),
-                           ('color', '#00FF00'),
+                           ('color', '#FFFFFF'),
                            ('font-weight', 'bold')]},
                 {'selector': 'tbody tr th',
                  'props': [('background-color', '#000000'),
-                           ('color', '#00FF00'),
+                           ('color', '#FFFFFF'),
                            ('font-weight', 'bold')]},
                 {'selector': 'tbody tr td',
                  'props': [('background-color', '#000000'),
-                           ('color', '#00FF00')]}
+                           ('color', '#FFFFFF')]}
             ])
             .format({'Valor': lambda x: formata_valor_brasil(x)})
         )
@@ -260,7 +193,6 @@ if df is not None:
         st.subheader("Entradas (Valores Positivos)")
         df_positivo = df[df['Valor'] > 0]
         df_positivo_agrupado = df_positivo.groupby('ContaContabil')['Valor'].sum().reset_index()
-    
         if not df_positivo_agrupado.empty:
             fig_entradas = px.bar(
                 df_positivo_agrupado,
@@ -276,7 +208,7 @@ if df is not None:
                 showlegend=False,
                 plot_bgcolor='rgba(0,0,0,0)',
                 paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(color="#00FF00", family="Segoe UI", size=12)
+                font=dict(color="#FFFFFF", family="Segoe UI", size=12)
             )
             fig_entradas.update_yaxes(tickprefix="R$ ", tickformat=",.2f")
             st.plotly_chart(fig_entradas, use_container_width=True)
@@ -286,7 +218,6 @@ if df is not None:
         st.subheader("Saídas (Valores Negativos)")
         df_negativo = df[df['Valor'] < 0]
         df_negativo_agrupado = df_negativo.groupby('ContaContabil')['Valor'].sum().abs().reset_index()
-    
         if not df_negativo_agrupado.empty:
             top_5_saidas = df_negativo_agrupado.nlargest(5, 'Valor')
             fig_saidas = px.bar(
@@ -304,7 +235,7 @@ if df is not None:
                 showlegend=False,
                 plot_bgcolor='rgba(0,0,0,0)',
                 paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(color="#00FF00", family="Segoe UI", size=12)
+                font=dict(color="#FFFFFF", family="Segoe UI", size=12)
             )
             fig_saidas.update_xaxes(tickprefix="R$ ", tickformat=",.2f")
             st.plotly_chart(fig_saidas, use_container_width=True)
@@ -315,11 +246,9 @@ if df is not None:
         df_entradas_mensal = df[df['Valor'] > 0].groupby('Mês/Ano')['Valor'].sum().reset_index()
         df_saidas_mensal = df[df['Valor'] < 0].groupby('Mês/Ano')['Valor'].sum().reset_index()
         df_saidas_mensal['Valor'] = df_saidas_mensal['Valor'].abs()
-    
         df_entradas_mensal['Tipo'] = 'Entradas'
         df_saidas_mensal['Tipo'] = 'Saídas'
         df_dre = pd.concat([df_entradas_mensal, df_saidas_mensal], axis=0)
-    
         if not df_dre.empty:
             fig_dre = px.bar(
                 df_dre,
@@ -335,7 +264,7 @@ if df is not None:
             fig_dre.update_layout(
                 plot_bgcolor='rgba(0,0,0,0)',
                 paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(color="#00FF00", family="Segoe UI", size=12)
+                font=dict(color="#FFFFFF", family="Segoe UI", size=12)
             )
             st.plotly_chart(fig_dre, use_container_width=True)
         else:
@@ -345,12 +274,10 @@ if df is not None:
         df_receitas = df[df['ContaContabil'].isin(['Receita Vendas ML', 'Receita Vendas SH'])]
         df_receitas_mensal = df_receitas.groupby('Mês/Ano')['Valor'].sum().reset_index()
         df_receitas_mensal.rename(columns={'Valor': 'Receitas'}, inplace=True)
-    
         df_impostos = df[df['ContaContabil'] == 'Impostos - DAS Simples Nacional'].copy()
         df_impostos['Valor'] = df_impostos['Valor'].abs()
         df_impostos_mensal = df_impostos.groupby('Mês/Ano')['Valor'].sum().reset_index()
         df_impostos_mensal.rename(columns={'Valor': 'Impostos'}, inplace=True)
-    
         df_comparacao = pd.merge(df_receitas_mensal, df_impostos_mensal, on='Mês/Ano', how='outer').fillna(0)
         if not df_comparacao.empty:
             df_comparacao_melt = df_comparacao.melt(
@@ -373,7 +300,7 @@ if df is not None:
             fig_comp.update_layout(
                 plot_bgcolor='rgba(0,0,0,0)',
                 paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(color="#00FF00", family="Segoe UI", size=12)
+                font=dict(color="#FFFFFF", family="Segoe UI", size=12)
             )
             st.plotly_chart(fig_comp, use_container_width=True)
         else:
@@ -386,7 +313,6 @@ if df is not None:
         resumo_pivot2 = resumo2.pivot(index='ContaContabil', columns='Mês/Ano', values='Valor').fillna(0)
         resumo_pivot2['Total'] = resumo_pivot2.sum(axis=1)
         resumo_pivot2.sort_values(by='Total', ascending=False, inplace=True)
-    
         csv_data = convert_df(resumo_pivot2)
         st.download_button(
             label="💾 Exportar Resumo para CSV",
