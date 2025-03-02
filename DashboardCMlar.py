@@ -15,7 +15,7 @@ def formata_valor_brasil(valor):
         return ""
     return f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
-# CSS customizado para tema dark, headers em verde e emojis nos cartões
+# CSS customizado para tema dark, headers em verde e cards com fonte neon
 st.markdown("""
     <style>
     /* ======= LAYOUT GERAL ======= */
@@ -37,7 +37,7 @@ st.markdown("""
         font-weight: bold;
     }
     .stMetric-value {
-        color: #00FFFF !important;   /* valor do cartão (azul claro) */
+        color: #00FF7F !important;   /* valor do cartão (verde neon) */
         font-size: 1.5rem !important;
     }
 
@@ -75,11 +75,10 @@ st.markdown("""
         background-color: #1e1e1e !important; /* fundo da tabela */
         color: #f0f0f0 !important;
     }
-
     /* Cabeçalho da tabela (thead) */
     .stDataFrame thead tr th, .st-dataframe thead tr th {
-        background-color: #222222 !important;  /* fundo do header da tabela */
-        color: #00FF7F !important;            /* cor do texto no header (verde neon) */
+        background-color: #121212 !important;  /* fundo dark do header */
+        color: #00FF7F !important;            /* texto verde neon */
         font-weight: bold !important;
     }
 
@@ -154,7 +153,7 @@ if df is not None:
     total_compras_revenda = df[df['ContaContabil'] == 'Compras de Mercadoria para Revenda']['Valor'].sum()
     total_das = df[df['ContaContabil'] == 'Impostos - DAS Simples Nacional']['Valor'].sum()
 
-    # Métricas com emojis
+    # Métricas com emojis (exemplo)
     col1, col2, col3 = st.columns(3)
     col1.metric("Entradas (R$) 💵", formata_valor_brasil(total_entradas))
     col2.metric("Saídas (R$) 💸", formata_valor_brasil(abs(total_saidas)))
@@ -173,7 +172,6 @@ if df is not None:
     # 5.1) ABA: RESUMO
     # ----------------------------
     with tab1:
-        # Título em verde neon
         st.markdown("<h2 style='color:#00FF7F;'>Resumo por Conta Contábil</h2>", unsafe_allow_html=True)
 
         df['Mês/Ano'] = df['Data'].dt.to_period('M').astype(str)
