@@ -15,7 +15,7 @@ def formata_valor_brasil(valor):
         return ""
     return f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
-# CSS customizado para tema dark mais minimalista e focado em legibilidade
+# CSS customizado para tema dark, headers em verde e emojis nos cartões
 st.markdown("""
     <style>
     /* ======= LAYOUT GERAL ======= */
@@ -25,7 +25,7 @@ st.markdown("""
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
 
-    /* ======= TÍTULOS ======= */
+    /* ======= TÍTULOS (H1..H6) ======= */
     h1, h2, h3, h4, h5, h6 {
         color: #00FF7F !important; /* verde neon */
         text-shadow: none !important;
@@ -33,17 +33,17 @@ st.markdown("""
 
     /* ======= MÉTRICAS (CARTÕES) ======= */
     .stMetric-label {
-        color: #00FF7F !important;
+        color: #00FF7F !important;   /* título do cartão */
         font-weight: bold;
     }
     .stMetric-value {
-        color: #00FFFF !important; /* azul claro */
+        color: #00FFFF !important;   /* valor do cartão (azul claro) */
         font-size: 1.5rem !important;
     }
 
     /* ======= BOTÕES ======= */
     .stButton > button {
-        background-color: #00FF7F !important;
+        background-color: #00FF7F !important; /* verde neon */
         color: #000000 !important;
         border-radius: 8px !important;
         font-weight: bold !important;
@@ -56,9 +56,9 @@ st.markdown("""
 
     /* ======= SIDEBAR ======= */
     [data-testid="stSidebar"] {
-        background-color: #232323 !important;
+        background-color: #232323 !important;  /* fundo dark para a sidebar */
     }
-    [data-testid="stSidebar"] .css-1d391kg {  
+    [data-testid="stSidebar"] .css-1d391kg {
         color: #00FF7F !important;
         font-weight: bold !important;
     }
@@ -72,9 +72,18 @@ st.markdown("""
 
     /* ======= DATAFRAMES / TABELAS ======= */
     .stDataFrame, .st-dataframe, .css-1ih547n {
-        background-color: #2d2d2d !important; /* fundo padrão da tabela */
-        color: #ffffff !important;
+        background-color: #1e1e1e !important; /* fundo da tabela */
+        color: #f0f0f0 !important;
     }
+
+    /* Cabeçalho da tabela (thead) */
+    .stDataFrame thead tr th, .st-dataframe thead tr th {
+        background-color: #222222 !important;  /* fundo do header da tabela */
+        color: #00FF7F !important;            /* cor do texto no header (verde neon) */
+        font-weight: bold !important;
+    }
+
+    /* Borda das células da tabela */
     table, th, td {
         border-color: #3f3f3f !important;
     }
@@ -145,14 +154,15 @@ if df is not None:
     total_compras_revenda = df[df['ContaContabil'] == 'Compras de Mercadoria para Revenda']['Valor'].sum()
     total_das = df[df['ContaContabil'] == 'Impostos - DAS Simples Nacional']['Valor'].sum()
 
+    # Métricas com emojis
     col1, col2, col3 = st.columns(3)
-    col1.metric("Entradas (R$)", formata_valor_brasil(total_entradas))
-    col2.metric("Saídas (R$)", formata_valor_brasil(abs(total_saidas)))
-    col3.metric("Saldo (R$)", formata_valor_brasil(saldo))
+    col1.metric("Entradas (R$) 💵", formata_valor_brasil(total_entradas))
+    col2.metric("Saídas (R$) 💸", formata_valor_brasil(abs(total_saidas)))
+    col3.metric("Saldo (R$) 💰", formata_valor_brasil(saldo))
 
     col4, col5 = st.columns(2)
-    col4.metric("Compras de Mercadoria para Revenda", formata_valor_brasil(total_compras_revenda))
-    col5.metric("Impostos - DAS Simples Nacional", formata_valor_brasil(total_das))
+    col4.metric("Compras de Mercadoria 🛒", formata_valor_brasil(total_compras_revenda))
+    col5.metric("Impostos (DAS) 🧾", formata_valor_brasil(total_das))
 
     # --------------------------------
     # 5) CRIAÇÃO DAS ABAS
@@ -173,11 +183,13 @@ if df is not None:
         resumo_pivot['Total'] = resumo_pivot.sum(axis=1)
         resumo_pivot.sort_values(by='Total', ascending=False, inplace=True)
 
-        # Aplicar fundo ainda mais escuro na tabela
         st.dataframe(
             resumo_pivot.style
             .format(lambda x: formata_valor_brasil(x))
-            .set_properties(**{'background-color': '#121212', 'color': '#ffffff'})
+            .set_properties(**{
+                'background-color': '#1e1e1e',
+                'color': '#f0f0f0'
+            })
         )
 
     # ----------------------------
@@ -190,7 +202,10 @@ if df is not None:
         st.dataframe(
             df_sorted.style
             .format({'Valor': lambda x: formata_valor_brasil(x)})
-            .set_properties(**{'background-color': '#121212', 'color': '#ffffff'})
+            .set_properties(**{
+                'background-color': '#1e1e1e',
+                'color': '#f0f0f0'
+            })
         )
 
     # ----------------------------
