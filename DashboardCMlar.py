@@ -9,86 +9,112 @@ def convert_df(df):
     return df.to_csv(index=False).encode('utf-8')
 
 def formata_valor_brasil(valor):
+    """Converte um número float para o formato brasileiro (1.234,56)."""
     if pd.isnull(valor):
         return ""
     return f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
-# CSS: Ajusta componentes específicos sem usar regra universal
+# CSS Global: Define fundo dark e texto branco para a dashboard, inputs, file uploader, sidebar e notificações.
 st.markdown("""
     <style>
-    /* --- Fundo global e fonte padrão para o container do app --- */
+    /* ========= REGRAS GLOBAIS ========= */
     html, body, [data-testid="stAppViewContainer"] {
-        background-color: #1e1e1e;
+        background-color: #1e1e1e !important;
+        color: #FFFFFF !important;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
-    
-    /* --- Sidebar --- */
+    html, body, [data-testid="stAppViewContainer"] * {
+        color: #FFFFFF !important;
+    }
+    /* Sidebar */
     [data-testid="stSidebar"] {
-        background-color: #232323;
+        background-color: #232323 !important;
     }
     [data-testid="stSidebar"] .css-1d391kg {
-        color: #FFFFFF;
-        font-weight: bold;
+        color: #FFFFFF !important;
+        font-weight: bold !important;
     }
     
-    /* --- File Uploader --- */
+    /* ========= FILE UPLOADER ========= */
     [data-testid="stFileUploader"] {
-        background-color: #000000;
-        border: 1px solid #FFFFFF;
+        background-color: #000000 !important;
+        border: 1px solid #FFFFFF !important;
         border-radius: 5px;
         padding: 10px;
     }
     [data-testid="stFileUploader"] * {
-        color: #FFFFFF;
+        color: #FFFFFF !important;
     }
     [data-testid="stFileUploadDropzone"] {
-        background-color: #000000;
-        border: 1px dashed #FFFFFF;
+        background-color: #2d2d2d !important;
+        border: 1px dashed #FFFFFF !important;
         border-radius: 5px;
         padding: 5px;
     }
     [data-testid="stFileUploadDropzone"] * {
-        color: #FFFFFF;
+        color: #FFFFFF !important;
     }
     [data-testid="stFileUploadLabel"],
     [data-testid="stFileUploadInstructions"] {
-        background-color: #000000;
-        color: #FFFFFF;
+        background-color: #2d2d2d !important;
+        color: #FFFFFF !important;
     }
     [data-testid="stFileUploadLabel"] *,
     [data-testid="stFileUploadInstructions"] * {
-        color: #FFFFFF;
+        color: #FFFFFF !important;
     }
     
-    /* --- Inputs e Date Input --- */
+    /* ========= INPUTS E DATE INPUT ========= */
     input, .stTextInput, .stDateInput {
-        background-color: #2d2d2d;
-        border: 1px solid #FFFFFF;
-        color: #FFFFFF;
+        background-color: #2d2d2d !important;
+        border: 1px solid #FFFFFF !important;
+        color: #FFFFFF !important;
     }
     input::placeholder {
-        color: #BBBBBB;
+        color: #BBBBBB !important;
     }
-    /* Ajuste específico para o datepicker (usado pelo BaseWeb) */
     div[data-baseweb="datepicker"] {
-        background-color: #2d2d2d;
-        color: #FFFFFF;
-        border: 1px solid #FFFFFF;
-        border-radius: 5px;
+        background-color: #2d2d2d !important;
+        color: #FFFFFF !important;
+        border: 1px solid #FFFFFF !important;
+        border-radius: 5px !important;
         padding: 5px;
     }
     div[data-baseweb="datepicker"] input {
-        background-color: #2d2d2d;
-        color: #FFFFFF;
+        background-color: #2d2d2d !important;
+        color: #FFFFFF !important;
+        border: 1px solid #FFFFFF !important;
+    }
+    
+    /* ========= BOTÕES E CARTÕES ========= */
+    .stButton > button {
+        background-color: #FFFFFF !important;
+        color: #000000 !important;
+        border-radius: 8px !important;
+        font-weight: bold !important;
+        border: none !important;
+        transition: transform 0.2s;
+    }
+    .stButton > button:hover {
+        transform: scale(1.03);
+    }
+    .stMetric-label, .stMetric-value {
+        font-weight: bold !important;
+    }
+    .stMetric-value {
+        font-size: 1.5rem !important;
+    }
+    hr {
         border: 1px solid #FFFFFF;
     }
     
-    /* --- Notificações (st.warning, st.info, etc.) --- */
+    /* ========= NOTIFICAÇÕES ========= */
     div[data-testid="stNotificationItem"] {
-        background-color: #000000;
-        color: #FFFFFF;
-        border: 1px solid #FFFFFF;
-        border-radius: 5px;
-        padding: 10px;
+        background-color: #000000 !important;
+        color: #FFFFFF !important;
+        border: 1px solid #FFFFFF !important;
+        border-radius: 5px !important;
+        padding: 10px !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -149,7 +175,7 @@ if df is not None:
     col2.metric("Saídas (R$)", formata_valor_brasil(abs(total_saidas)))
     col3.metric("Saldo (R$)", formata_valor_brasil(saldo))
     
-    # Criação das abas
+    # Abas da dashboard
     tab1, tab2, tab3, tab4 = st.tabs(["📊 Resumo", "📄 Dados", "📈 Gráficos", "💾 Exportação"])
     
     # Aba Resumo
