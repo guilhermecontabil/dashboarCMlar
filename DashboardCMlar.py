@@ -2,6 +2,36 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
+
+# CSS específico para o file uploader: força o texto a ser verde neon (#00FF7F)
+st.markdown("""
+    <style>
+    /* Força o texto em toda a área do file uploader a ser verde neon */
+    [data-testid="stFileUploader"] * {
+        color: #00FF7F !important;
+    }
+    [data-testid="stFileUploadDropzone"] * {
+        color: #00FF7F !important;
+    }
+    [data-testid="stFileUploadLabel"] * {
+        color: #00FF7F !important;
+    }
+    [data-testid="stFileUploadInstructions"] * {
+        color: #00FF7F !important;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# Exemplo simples de file uploader na sidebar
+st.sidebar.title("⚙️ Configurações")
+uploaded_file = st.sidebar.file_uploader("📥 Importar arquivo Excel", type=["xlsx"])
+
+if uploaded_file is not None:
+    st.sidebar.success("Arquivo carregado com sucesso!")
+else:
+    st.sidebar.warning("Por favor, faça o upload de um arquivo Excel para começar.")
+
+
 # ------------------------------------
 # 1) CONFIGURAÇÕES E ESTILO
 # ------------------------------------
