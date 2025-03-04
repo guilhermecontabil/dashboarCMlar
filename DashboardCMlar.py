@@ -177,9 +177,7 @@ if df is not None:
          df_pivot.get("Impostos - DAS Simples Nacional", 0))
     )
     
-    # ------------------------------------------------------------------------------
-    # Gráfico de Evolução: Exibe linhas individuais em dash para contas e linha sólida para a margem
-    # ------------------------------------------------------------------------------
+    # Gráfico de Evolução: Linhas individuais em dash e margem consolidada em solid
     fig_evol = go.Figure()
     x_vals = df_pivot["Mês/Ano"]
     contas = ["Receita Vendas ML", "Receita Vendas SH", 
@@ -221,10 +219,10 @@ if df is not None:
     with tab1:
         st.markdown("<h2>Resumo por Conta Contábil</h2>", unsafe_allow_html=True)
         resumo = df.groupby(['ContaContabil', 'Mês/Ano'])['Valor'].sum().reset_index()
-        resumo_pivot = resumo.pivot(index='ContaContábil', columns='Mês/Ano', values='Valor').fillna(0)
+        resumo_pivot = resumo.pivot(index='ContaContabil', columns='Mês/Ano', values='Valor').fillna(0)
         resumo_pivot['Total'] = resumo_pivot.sum(axis=1)
-        # Ordena pelo total e adiciona uma linha "Total Geral"
         resumo_pivot.sort_values(by='Total', ascending=False, inplace=True)
+        # Cria uma linha "Total Geral"
         total_geral = pd.DataFrame(resumo_pivot.sum(axis=0)).T
         total_geral.index = ['Total Geral']
         resumo_pivot = pd.concat([resumo_pivot, total_geral])
@@ -277,7 +275,7 @@ if df is not None:
                 x='Valor',
                 orientation='h',
                 title='Top 5 Categorias de Saídas',
-                labels={'Valor': 'Valor (R$)', 'ContaContábil': 'Conta Contábil'},
+                labels={'Valor': 'Valor (R$)', 'ContaContabil': 'Conta Contábil'},
                 template='plotly_white'
             )
             fig_saidas.update_layout(yaxis={'categoryorder': 'total ascending'})
@@ -362,7 +360,7 @@ if df is not None:
         resumo_pivot2 = resumo2.pivot(index='ContaContabil', columns='Mês/Ano', values='Valor').fillna(0)
         resumo_pivot2['Total'] = resumo_pivot2.sum(axis=1)
         resumo_pivot2.sort_values(by='Total', ascending=False, inplace=True)
-        # Cria a linha "Total Geral"
+        # Adiciona linha "Total Geral"
         total_geral = pd.DataFrame(resumo_pivot2.sum(axis=0)).T
         total_geral.index = ['Total Geral']
         resumo_pivot2 = pd.concat([resumo_pivot2, total_geral])
@@ -379,4 +377,4 @@ else:
 # ------------------------------------------------------------------------------
 # Footer personalizado
 # ------------------------------------------------------------------------------
-st.markdown('<div style="text-align:center; color:#7F8C8D; font-size:0.8rem;">Dashboard desenvolvido por FOUR CONTABILIDADE - 2025</div>', unsafe_allow_html=True)
+st.markdown('<div style="text-align:center; color:#7F8C8D; font-size:0.8rem;">Dashboard desenvolvido por [Seu Nome] - 2025</div>', unsafe_allow_html=True)
