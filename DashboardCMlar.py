@@ -492,4 +492,4 @@ else:
 # ------------------------------------------------------------------------------
 # Footer personalizado
 # ------------------------------------------------------------------------------
-st.markdown('<div style="text-align:center; color:#7F8C8D; font-size:0.8rem;">Dashboard desenvolvido por [Seu Nome] - 2025</div>', unsafe_allow_html=True)
+st.markdown('<div style="text-align:center; color:#7F8C8D; font-size:0.8rem;">Dashboard desenvolvido por FOUR CONTABILIDADE - 2025</div>', unsafe_allow_html=True)
