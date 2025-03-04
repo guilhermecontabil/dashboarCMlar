@@ -22,7 +22,7 @@ def convert_df_to_xlsx(df):
 def formata_valor_brasil(valor):
     if pd.isnull(valor):
         return ""
-    # Formata para o padrão brasileiro: milhar com ponto e decimal com vírgula
+    # Formata para padrão brasileiro: milhar com ponto e decimal com vírgula
     return f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 # ------------------------------------------------------------------------------
@@ -152,7 +152,6 @@ if df is not None:
     # Cálculo da Margem de Contribuição (Contribuição Ajustada) por período
     # Fórmula: (Receita Vendas ML + Receita Vendas SH) - (|Compras de Mercadoria para Revenda| +
     #         |Taxa / Comissão / Fretes - makeplace| + |Impostos - DAS Simples Nacional|)
-    # Como os valores de despesas estão negativos, usaremos o valor absoluto para subtrair.
     def calc_contribuicao_ajustada(grupo):
         receita_ml = grupo.loc[grupo["ContaContabil"] == "Receita Vendas ML", "Valor"].sum()
         receita_sh = grupo.loc[grupo["ContaContabil"] == "Receita Vendas SH", "Valor"].sum()
@@ -160,14 +159,13 @@ if df is not None:
         compras = grupo.loc[grupo["ContaContabil"] == "Compras de Mercadoria para Revenda", "Valor"].sum()
         taxa = grupo.loc[grupo["ContaContabil"] == "Taxa / Comissão / Fretes - makeplace", "Valor"].sum()
         impostos = grupo.loc[grupo["ContaContabil"] == "Impostos - DAS Simples Nacional", "Valor"].sum()
-        # Subtrai o valor absoluto das despesas
         return total_receita - (abs(compras) + abs(taxa) + abs(impostos))
     
     df_contrib = df.groupby("Mês/Ano").apply(calc_contribuicao_ajustada).reset_index(name="Contribuição Ajustada")
     
     # Cria uma tabela pivot com os componentes para o gráfico de evolução
     df_pivot = df.groupby(['Mês/Ano', 'ContaContabil'])['Valor'].sum().unstack(fill_value=0).reset_index()
-    # Cálculo da margem consolidada: usamos a mesma fórmula (usando valor absoluto para despesas)
+    # Cálculo da margem consolidada (Contribuição Ajustada) usando valor absoluto para despesas
     df_pivot["Contribuição Ajustada"] = (
         df_pivot.get("Receita Vendas ML", 0) +
         df_pivot.get("Receita Vendas SH", 0) -
@@ -176,7 +174,7 @@ if df is not None:
          abs(df_pivot.get("Impostos - DAS Simples Nacional", 0)))
     )
     
-    # Gráfico de Evolução: Linhas individuais (dash) para cada conta e linha sólida para a margem
+    # Gráfico de Evolução: Linhas individuais (dash) para contas e linha sólida para a margem
     fig_evol = go.Figure()
     x_vals = df_pivot["Mês/Ano"]
     contas = ["Receita Vendas ML", "Receita Vendas SH", 
@@ -359,9 +357,10 @@ if df is not None:
         resumo_pivot2 = resumo2.pivot(index='ContaContabil', columns='Mês/Ano', values='Valor').fillna(0)
         resumo_pivot2['Total'] = resumo_pivot2.sum(axis=1)
         resumo_pivot2.sort_values(by='Total', ascending=False, inplace=True)
+        # Adiciona uma linha "Total Geral" e reseta o índice para incluir a descrição da conta
         total_geral = pd.DataFrame(resumo_pivot2.sum(axis=0)).T
         total_geral.index = ['Total Geral']
-        resumo_pivot2 = pd.concat([resumo_pivot2, total_geral])
+        resumo_pivot2 = pd.concat([resumo_pivot2, total_geral]).reset_index()
         xlsx_data = convert_df_to_xlsx(resumo_pivot2)
         st.download_button(
             label="💾 Exportar Resumo para XLSX",
