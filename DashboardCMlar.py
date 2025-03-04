@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import streamlit.components.v1 as components
 import io
 
@@ -69,11 +70,12 @@ components.html(
 )
 
 # ------------------------------------------------------------------------------
-# Sidebar: Upload de arquivo e filtros
+# Sidebar: Upload de arquivo, Filtros e Seleção Global de Contas
 # ------------------------------------------------------------------------------
 st.sidebar.title("⚙️ Configurações")
-uploaded_file = st.sidebar.file_uploader("📥 Importar arquivo Excel", type=["xlsx"])
 
+# Upload do arquivo
+uploaded_file = st.sidebar.file_uploader("📥 Importar arquivo Excel", type=["xlsx"])
 if uploaded_file is not None:
     with st.spinner("Carregando arquivo..."):
         df = pd.read_excel(uploaded_file)
@@ -85,35 +87,45 @@ else:
     df = None
     st.sidebar.warning("Por favor, faça o upload de um arquivo Excel para começar.")
 
-# ------------------------------------------------------------------------------
-# Execução do Dashboard (se houver dados)
-# ------------------------------------------------------------------------------
+# Se a base estiver disponível, permite filtrar globalmente as contas
 if df is not None:
-    # Conversões de tipo
-    df['Data'] = pd.to_datetime(df['Data'], dayfirst=True, errors='coerce')
-    df['Valor'] = pd.to_numeric(df['Valor'], errors='coerce')
-    
+    all_accounts = sorted(df["ContaContabil"].unique())
+    selected_accounts_global = st.sidebar.multiselect("Selecione as Contas (global):", 
+                                                      options=all_accounts, default=all_accounts)
+    df = df[df["ContaContabil"].isin(selected_accounts_global)]
+
+# Filtros adicionais (data, grupo de conta, filtro de texto)
+if df is not None:
     # Filtro: Intervalo de datas
-    min_date = df['Data'].min()
-    max_date = df['Data'].max()
+    min_date = df['Data'].min() if not df['Data'].isnull().all() else pd.Timestamp('today')
+    max_date = df['Data'].max() if not df['Data'].isnull().all() else pd.Timestamp('today')
     selected_dates = st.sidebar.date_input("Selecione o intervalo de datas:", [min_date, max_date])
     if isinstance(selected_dates, list) and len(selected_dates) == 2:
         start_date, end_date = selected_dates
         df = df[(df['Data'] >= pd.to_datetime(start_date)) & (df['Data'] <= pd.to_datetime(end_date))]
     
-    # Filtro: Grupo de Conta (caso exista)
+    # Filtro: Grupo de Conta (se existir)
     if 'GrupoDeConta' in df.columns:
         grupos_unicos = df['GrupoDeConta'].dropna().unique()
         grupo_selecionado = st.sidebar.selectbox("🗂️ Filtrar por Grupo de Conta:", ["Todos"] + list(grupos_unicos))
         if grupo_selecionado != "Todos":
             df = df[df['GrupoDeConta'] == grupo_selecionado]
     
-    # Filtro: Conta Contábil
-    filtro_conta = st.sidebar.text_input("🔍 Filtrar Conta Contábil:")
+    # Filtro: Conta Contábil por texto (opcional)
+    filtro_conta = st.sidebar.text_input("🔍 Filtrar Conta Contábil (texto):")
     if filtro_conta:
         df = df[df['ContaContabil'].str.contains(filtro_conta, case=False, na=False)]
+
+# ------------------------------------------------------------------------------
+# Processamento dos dados (se houver dados)
+# ------------------------------------------------------------------------------
+if df is not None:
+    # Converte as colunas de Data e Valor (se ainda não foram convertidas)
+    df['Data'] = pd.to_datetime(df['Data'], dayfirst=True, errors='coerce')
+    df['Valor'] = pd.to_numeric(df['Valor'], errors='coerce')
     
-    st.markdown("<hr>", unsafe_allow_html=True)
+    # Cria a coluna "Mês/Ano" para agrupamento
+    df['Mês/Ano'] = df['Data'].dt.to_period('M').astype(str)
     
     # ------------------------------------------------------------------------------
     # Métricas principais
@@ -143,16 +155,11 @@ if df is not None:
             df[col] = 0
     
     # ------------------------------------------------------------------------------
-    # Cria a coluna "Mês/Ano" para agrupamento
-    # ------------------------------------------------------------------------------
-    df['Mês/Ano'] = df['Data'].dt.to_period('M').astype(str)
-    
-    # ------------------------------------------------------------------------------
     # Cálculo da Margem de Contribuição (Contribuição Ajustada) por período
     # ------------------------------------------------------------------------------
-    # Fórmula: (Receita Vendas ML + Receita Vendas SH) - 
-    #          (Compras de Mercadoria para Revenda + Taxa/Comissão/Fretes - makeplace + Impostos - DAS Simples Nacional)
-    # Como os valores de despesas já estão negativos, basta somá-los.
+    # Fórmula: (Receita Vendas ML + Receita Vendas SH) - (Compras de Mercadoria para Revenda +
+    #         Taxa/Comissão/Fretes - makeplace + Impostos - DAS Simples Nacional)
+    # Como os valores de despesas já estão negativos, a soma das receitas com as despesas fornece o resultado correto.
     def calc_contribuicao_ajustada(grupo):
         receita_ml = grupo.loc[grupo["ContaContabil"] == "Receita Vendas ML", "Valor"].sum()
         receita_sh = grupo.loc[grupo["ContaContabil"] == "Receita Vendas SH", "Valor"].sum()
@@ -162,39 +169,58 @@ if df is not None:
             "Taxa / Comissão / Fretes - makeplace",
             "Impostos - DAS Simples Nacional"
         ]), "Valor"].sum()
-        return total_receita + total_despesas  # como despesas são negativas
+        return total_receita + total_despesas
     
     df_contrib = df.groupby("Mês/Ano").apply(calc_contribuicao_ajustada).reset_index(name="Contribuição Ajustada")
     
     # ------------------------------------------------------------------------------
-    # Evolução da Contribuição Ajustada (por Mês/Ano)
+    # Cria uma tabela pivot com os componentes para o gráfico de evolução
     # ------------------------------------------------------------------------------
-    # Criamos um pivot dos dados por Mês/Ano para os componentes relevantes e o total
     df_pivot = df.groupby(['Mês/Ano', 'ContaContabil'])['Valor'].sum().unstack(fill_value=0).reset_index()
-    # Cálculo do total (Contribuição Ajustada) conforme a fórmula:
-    # Como as despesas já são negativas, somamos diretamente
+    # Calcula o total (Contribuição Ajustada) conforme a fórmula correta
     df_pivot["Contribuição Ajustada"] = (
         df_pivot.get("Receita Vendas ML", 0) +
-        df_pivot.get("Receita Vendas SH", 0) +
-        df_pivot.get("Compras de Mercadoria para Revenda", 0) +
-        df_pivot.get("Taxa / Comissão / Fretes - makeplace", 0) +
-        df_pivot.get("Impostos - DAS Simples Nacional", 0)
+        df_pivot.get("Receita Vendas SH", 0) -
+        (df_pivot.get("Compras de Mercadoria para Revenda", 0) +
+         df_pivot.get("Taxa / Comissão / Fretes - makeplace", 0) +
+         df_pivot.get("Impostos - DAS Simples Nacional", 0))
     )
     
-    # Agora, para o gráfico de evolução, removemos a seleção de componentes e exibimos somente a evolução da margem
-    df_evol = df_pivot[["Mês/Ano", "Contribuição Ajustada"]]
-    df_evol_long = df_evol.melt(id_vars="Mês/Ano", value_vars=["Contribuição Ajustada"],
-                                var_name="Componente", value_name="Valor")
-    
-    fig_evol = px.line(
-        df_evol_long,
-        x="Mês/Ano",
-        y="Valor",
-        color="Componente",
-        markers=True,
-        title="Evolução da Contribuição Ajustada (por Mês/Ano)"
+    # ------------------------------------------------------------------------------
+    # Gráfico de Evolução: linhas individuais para cada conta (dashed) e total (solid)
+    # ------------------------------------------------------------------------------
+    # Cria uma figura manualmente
+    fig_evol = go.Figure()
+    x_vals = df_pivot["Mês/Ano"]
+    # Lista de contas que compõem a margem
+    contas = ["Receita Vendas ML", "Receita Vendas SH", 
+              "Compras de Mercadoria para Revenda", 
+              "Taxa / Comissão / Fretes - makeplace", 
+              "Impostos - DAS Simples Nacional"]
+    # Adiciona uma trace para cada conta com linha dashed
+    for conta in contas:
+        if conta in df_pivot.columns:
+            fig_evol.add_trace(
+                go.Scatter(
+                    x=x_vals,
+                    y=df_pivot[conta],
+                    mode="lines+markers",
+                    name=conta,
+                    line=dict(dash="dash")
+                )
+            )
+    # Adiciona a trace para o total (Contribuição Ajustada) com linha sólida
+    fig_evol.add_trace(
+        go.Scatter(
+            x=x_vals,
+            y=df_pivot["Contribuição Ajustada"],
+            mode="lines+markers",
+            name="Contribuição Ajustada",
+            line=dict(dash="solid", width=3)
+        )
     )
     fig_evol.update_layout(
+        title="Evolução da Contribuição Ajustada (por Mês/Ano)",
         yaxis_tickprefix="R$ ",
         yaxis_tickformat=",.2f"
     )
