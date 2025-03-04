@@ -70,7 +70,7 @@ components.html(
 )
 
 # ------------------------------------------------------------------------------
-# Sidebar: Upload de arquivo, Filtros e Seleção Global de Contas
+# Sidebar: Upload, Filtros e Seleção Global de Contas para Evolução
 # ------------------------------------------------------------------------------
 st.sidebar.title("⚙️ Configurações")
 
@@ -94,11 +94,16 @@ if df is not None:
                                                       options=all_accounts, default=all_accounts)
     df = df[df["ContaContabil"].isin(selected_accounts_global)]
 
-# Filtros adicionais (data, grupo de conta, filtro de texto)
+# ------------------------------------------------------------------------------
+# Conversão da coluna "Data" antes de usá-la nos filtros
+# ------------------------------------------------------------------------------
 if df is not None:
-    # Filtro: Intervalo de datas
-    min_date = df['Data'].min() if not df['Data'].isnull().all() else pd.Timestamp('today')
-    max_date = df['Data'].max() if not df['Data'].isnull().all() else pd.Timestamp('today')
+    # Converte a coluna 'Data' para datetime (caso ainda não esteja convertida)
+    df['Data'] = pd.to_datetime(df['Data'], dayfirst=True, errors='coerce')
+    # Define datas mínimas e máximas como objetos date (para o widget)
+    min_date = df['Data'].min().date() if pd.notnull(df['Data'].min()) else pd.Timestamp('today').date()
+    max_date = df['Data'].max().date() if pd.notnull(df['Data'].max()) else pd.Timestamp('today').date()
+    
     selected_dates = st.sidebar.date_input("Selecione o intervalo de datas:", [min_date, max_date])
     if isinstance(selected_dates, list) and len(selected_dates) == 2:
         start_date, end_date = selected_dates
@@ -117,11 +122,10 @@ if df is not None:
         df = df[df['ContaContabil'].str.contains(filtro_conta, case=False, na=False)]
 
 # ------------------------------------------------------------------------------
-# Processamento dos dados (se houver dados)
+# Processamento dos dados e cálculos (se houver dados)
 # ------------------------------------------------------------------------------
 if df is not None:
-    # Converte as colunas de Data e Valor (se ainda não foram convertidas)
-    df['Data'] = pd.to_datetime(df['Data'], dayfirst=True, errors='coerce')
+    # Certifica que a coluna 'Valor' está no formato numérico
     df['Valor'] = pd.to_numeric(df['Valor'], errors='coerce')
     
     # Cria a coluna "Mês/Ano" para agrupamento
@@ -159,7 +163,7 @@ if df is not None:
     # ------------------------------------------------------------------------------
     # Fórmula: (Receita Vendas ML + Receita Vendas SH) - (Compras de Mercadoria para Revenda +
     #         Taxa/Comissão/Fretes - makeplace + Impostos - DAS Simples Nacional)
-    # Como os valores de despesas já estão negativos, a soma das receitas com as despesas fornece o resultado correto.
+    # Como os valores de despesas já estão negativos, basta somá-los.
     def calc_contribuicao_ajustada(grupo):
         receita_ml = grupo.loc[grupo["ContaContabil"] == "Receita Vendas ML", "Valor"].sum()
         receita_sh = grupo.loc[grupo["ContaContabil"] == "Receita Vendas SH", "Valor"].sum()
@@ -170,14 +174,14 @@ if df is not None:
             "Impostos - DAS Simples Nacional"
         ]), "Valor"].sum()
         return total_receita + total_despesas
-    
+
     df_contrib = df.groupby("Mês/Ano").apply(calc_contribuicao_ajustada).reset_index(name="Contribuição Ajustada")
     
     # ------------------------------------------------------------------------------
     # Cria uma tabela pivot com os componentes para o gráfico de evolução
     # ------------------------------------------------------------------------------
     df_pivot = df.groupby(['Mês/Ano', 'ContaContabil'])['Valor'].sum().unstack(fill_value=0).reset_index()
-    # Calcula o total (Contribuição Ajustada) conforme a fórmula correta
+    # Calcula o total (Contribuição Ajustada) conforme a fórmula
     df_pivot["Contribuição Ajustada"] = (
         df_pivot.get("Receita Vendas ML", 0) +
         df_pivot.get("Receita Vendas SH", 0) -
@@ -187,17 +191,15 @@ if df is not None:
     )
     
     # ------------------------------------------------------------------------------
-    # Gráfico de Evolução: linhas individuais para cada conta (dashed) e total (solid)
+    # Gráfico de Evolução: Exibe as linhas individuais em dash e a margem consolidada em solid
     # ------------------------------------------------------------------------------
-    # Cria uma figura manualmente
     fig_evol = go.Figure()
     x_vals = df_pivot["Mês/Ano"]
-    # Lista de contas que compõem a margem
+    # Contas individuais
     contas = ["Receita Vendas ML", "Receita Vendas SH", 
               "Compras de Mercadoria para Revenda", 
               "Taxa / Comissão / Fretes - makeplace", 
               "Impostos - DAS Simples Nacional"]
-    # Adiciona uma trace para cada conta com linha dashed
     for conta in contas:
         if conta in df_pivot.columns:
             fig_evol.add_trace(
@@ -209,7 +211,7 @@ if df is not None:
                     line=dict(dash="dash")
                 )
             )
-    # Adiciona a trace para o total (Contribuição Ajustada) com linha sólida
+    # Trace consolidado para Contribuição Ajustada (linha sólida)
     fig_evol.add_trace(
         go.Scatter(
             x=x_vals,
