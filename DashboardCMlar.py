@@ -15,19 +15,20 @@ def formata_valor_brasil(valor):
         return ""
     return f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
-# CSS Global aprimorado + correção file_uploader:
+# CSS Global
 st.markdown("""
     <style>
-    /* Configuração global: texto claro sobre fundo escuro */
+    /* ====================== GLOBAL ====================== */
+    /* Texto claro sobre fundo escuro (para o site em geral) */
     html, body, [data-testid="stAppViewContainer"] * {
         color: #ECF0F1 !important;
     }
     /* Fundo e fonte global */
     html, body, [data-testid="stAppViewContainer"], .main, .block-container {
-        background-color: #2C3E50 !important;
+        background-color: #2C3E50 !important;  /* fundo escuro */
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
-    /* Títulos com cor teal */
+    /* Títulos em teal */
     h1, h2, h3, h4, h5, h6 {
         color: #1ABC9C !important;
     }
@@ -38,10 +39,11 @@ st.markdown("""
     .stMetric-value {
         font-size: 1.5rem !important;
     }
-    /* Botões com efeito de zoom e sombra */
+
+    /* ====================== BOTOES ====================== */
     .stButton > button {
-        background-color: #1ABC9C !important;
-        color: #2C3E50 !important;
+        background-color: #1ABC9C !important; /* teal */
+        color: #2C3E50 !important;            /* texto escuro */
         border-radius: 8px !important;
         font-weight: bold !important;
         border: none !important;
@@ -52,36 +54,42 @@ st.markdown("""
         transform: scale(1.05);
         box-shadow: 0 6px 8px rgba(0,0,0,0.3);
     }
-    /* Sidebar com fundo diferenciado e títulos em teal */
+
+    /* ====================== SIDEBAR ====================== */
     [data-testid="stSidebar"] {
-        background-color: #34495E !important;
+        background-color: #34495E !important; /* um tom mais escuro */
     }
+    /* Título da sidebar */
     [data-testid="stSidebar"] .css-1d391kg {
         color: #1ABC9C !important;
         font-weight: bold !important;
     }
-    /* Inputs e sliders com fundo diferenciado */
+
+    /* ====================== INPUTS ====================== */
     input, .st-bj, .st-at, .stTextInput, .stDateInput {
         background-color: #3A4F63 !important;
         border: 1px solid #1ABC9C !important;
         color: #ECF0F1 !important;
     }
-    /* Corrige o texto dentro do file_uploader (drag & drop) */
+
+    /* ====================== FILE UPLOADER ====================== */
+    /* Mantém o fundo branco e texto preto na área de upload */
     [data-testid="stFileUploadDropzone"] {
-        background-color: #3A4F63 !important;
+        background-color: #FFFFFF !important; /* fundo branco */
         border: 1px dashed #1ABC9C !important;
         border-radius: 6px !important;
     }
-    /* Força cor do texto e ícones dentro do file_uploader */
     [data-testid="stFileUploadDropzone"] * {
-        color: #ECF0F1 !important;
+        color: #000000 !important; /* texto preto */
         font-weight: 500;
     }
-    /* Separador */
+
+    /* ====================== SEPARADOR ====================== */
     hr {
         border: 1px solid #1ABC9C;
     }
-    /* Footer personalizado */
+
+    /* ====================== FOOTER ====================== */
     .custom-footer {
         position: fixed;
         bottom: 10px;
@@ -229,6 +237,7 @@ if df is not None:
     # ABA 3: GRÁFICOS
     # ==========================
     with tab3:
+        # ========== GRÁFICO 1: ENTRADAS ==========
         st.subheader("Entradas (Valores Positivos)")
         df_positivo = df[df['Valor'] > 0]
         df_positivo_agrupado = df_positivo.groupby('ContaContabil')['Valor'].sum().reset_index()
@@ -241,21 +250,23 @@ if df is not None:
                 color='ContaContabil',
                 title='Entradas por Conta Contábil',
                 labels={'Valor': 'Valor (R$)'},
-                template='plotly_dark',
+                template='none',  # sem template escuro
                 color_discrete_sequence=px.colors.qualitative.Vivid
             )
+            # Fundo branco e texto preto
             fig_entradas.update_layout(
                 xaxis_tickangle=-45,
                 showlegend=False,
-                plot_bgcolor='rgba(0,0,0,0)',
-                paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(color='#ECF0F1')
+                plot_bgcolor='#FFFFFF',
+                paper_bgcolor='#FFFFFF',
+                font=dict(color='#000000')  # Texto em preto
             )
             fig_entradas.update_yaxes(tickprefix="R$ ", tickformat=",.2f")
             st.plotly_chart(fig_entradas, use_container_width=True)
         else:
             st.write("Não há valores positivos para exibir.")
     
+        # ========== GRÁFICO 2: SAÍDAS ==========
         st.subheader("Saídas (Valores Negativos)")
         df_negativo = df[df['Valor'] < 0]
         df_negativo_agrupado = df_negativo.groupby('ContaContabil')['Valor'].sum().abs().reset_index()
@@ -269,21 +280,22 @@ if df is not None:
                 orientation='h',
                 title='Top 5 Categorias de Saídas',
                 labels={'Valor': 'Valor (R$)', 'ContaContabil': 'Conta Contábil'},
-                template='plotly_dark',
+                template='none',
                 color_discrete_sequence=['#E74C3C']
             )
             fig_saidas.update_layout(
                 yaxis={'categoryorder': 'total ascending'},
                 showlegend=False,
-                plot_bgcolor='rgba(0,0,0,0)',
-                paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(color='#ECF0F1')
+                plot_bgcolor='#FFFFFF',
+                paper_bgcolor='#FFFFFF',
+                font=dict(color='#000000')
             )
             fig_saidas.update_xaxes(tickprefix="R$ ", tickformat=",.2f")
             st.plotly_chart(fig_saidas, use_container_width=True)
         else:
             st.write("Não há valores negativos para exibir.")
     
+        # ========== GRÁFICO 3: ENTRADAS x SAÍDAS (Mês/Ano) ==========
         st.subheader("Entradas x Saídas (por Mês/Ano)")
         df_entradas_mensal = df[df['Valor'] > 0].groupby('Mês/Ano')['Valor'].sum().reset_index()
         df_saidas_mensal = df[df['Valor'] < 0].groupby('Mês/Ano')['Valor'].sum().reset_index()
@@ -302,18 +314,19 @@ if df is not None:
                 barmode='group',
                 title='Entradas x Saídas (por Mês/Ano)',
                 labels={'Valor': 'Valor (R$)'},
-                template='plotly_dark'
+                template='none'
+            )
+            fig_dre.update_layout(
+                plot_bgcolor='#FFFFFF',
+                paper_bgcolor='#FFFFFF',
+                font=dict(color='#000000')
             )
             fig_dre.update_yaxes(tickprefix="R$ ", tickformat=",.2f")
-            fig_dre.update_layout(
-                plot_bgcolor='rgba(0,0,0,0)',
-                paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(color='#ECF0F1')
-            )
             st.plotly_chart(fig_dre, use_container_width=True)
         else:
             st.write("Não há dados suficientes para exibir o gráfico de Entradas x Saídas.")
     
+        # ========== GRÁFICO 4: COMPARAÇÃO RECEITAS x IMPOSTOS ==========
         st.subheader("Comparação: (Receita Vendas ML + SH) x (Impostos - DAS Simples Nacional)")
         df_receitas = df[df['ContaContabil'].isin(['Receita Vendas ML', 'Receita Vendas SH'])]
         df_receitas_mensal = df_receitas.groupby('Mês/Ano')['Valor'].sum().reset_index()
@@ -340,14 +353,14 @@ if df is not None:
                 barmode='group',
                 title='(Receita Vendas ML + SH) vs (Impostos - DAS Simples Nacional)',
                 labels={'Valor': 'Valor (R$)'},
-                template='plotly_dark'
+                template='none'
+            )
+            fig_comp.update_layout(
+                plot_bgcolor='#FFFFFF',
+                paper_bgcolor='#FFFFFF',
+                font=dict(color='#000000')
             )
             fig_comp.update_yaxes(tickprefix="R$ ", tickformat=",.2f")
-            fig_comp.update_layout(
-                plot_bgcolor='rgba(0,0,0,0)',
-                paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(color='#ECF0F1')
-            )
             st.plotly_chart(fig_comp, use_container_width=True)
         else:
             st.write("Não há dados para gerar a comparação entre Receitas e Impostos (DAS).")
