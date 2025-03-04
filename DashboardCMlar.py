@@ -53,7 +53,7 @@ st.markdown(
         margin-bottom: 20px;
         box-shadow: 0 4px 8px rgba(0,0,0,0.1);
     }
-    /* Card customizado */
+    /* Card para Margem de Contribuição Ajustada */
     .mc-card {
         background-color: #00796B;
         padding: 20px;
@@ -100,11 +100,8 @@ if df is not None:
     if select_all:
         selected_accounts_global = all_accounts
     else:
-        selected_accounts_global = st.sidebar.multiselect(
-            "Selecione as Contas (global):", 
-            options=all_accounts, 
-            default=all_accounts
-        )
+        selected_accounts_global = st.sidebar.multiselect("Selecione as Contas (global):", 
+                                                           options=all_accounts, default=all_accounts)
     df = df[df["ContaContabil"].isin(selected_accounts_global)]
 
 # ------------------------------------------------------------------------------
@@ -152,7 +149,6 @@ if df is not None:
     col4.metric("Compras de Mercadoria 🛒", formata_valor_brasil(total_compras_revenda))
     col5.metric("Impostos (DAS) 🧾", formata_valor_brasil(total_das))
     
-    # Colunas para o cálculo da Margem de Contribuição
     required_cols = [
         "Receita Vendas ML", 
         "Receita Vendas SH", 
@@ -163,45 +159,47 @@ if df is not None:
     for col in required_cols:
         if col not in df.columns:
             df[col] = 0
-
-    # Fórmula: (Receita Vendas ML + Receita Vendas SH) - (|Despesas|)
+    
+    # Cálculo da Margem de Contribuição Ajustada por período:
+    # Fórmula: (Receita Vendas ML + Receita Vendas SH) - (|Compras de Mercadoria para Revenda| +
+    #         |Taxa / Comissão / Fretes - makeplace| + |Impostos - DAS Simples Nacional|)
     def calc_contribuicao_ajustada(grupo):
         receita_ml = grupo.loc[grupo["ContaContabil"] == "Receita Vendas ML", "Valor"].sum()
         receita_sh = grupo.loc[grupo["ContaContabil"] == "Receita Vendas SH", "Valor"].sum()
+        total_receita = receita_ml + receita_sh
         compras = grupo.loc[grupo["ContaContabil"] == "Compras de Mercadoria para Revenda", "Valor"].sum()
         taxa = grupo.loc[grupo["ContaContabil"] == "Taxa / Comissão / Fretes - makeplace", "Valor"].sum()
         impostos = grupo.loc[grupo["ContaContabil"] == "Impostos - DAS Simples Nacional", "Valor"].sum()
-        total_receita = receita_ml + receita_sh
-        # Despesas em valor absoluto
         despesas = abs(compras) + abs(taxa) + abs(impostos)
         return total_receita - despesas
 
-    # df_contrib: Mês/Ano x Contribuição Ajustada
     df_contrib = df.groupby("Mês/Ano").apply(calc_contribuicao_ajustada).reset_index(name="Contribuição Ajustada")
     
-    # Cria pivot para o gráfico de evolução
+    # Cria uma tabela pivot com os componentes para o gráfico de evolução
     df_pivot = df.groupby(['Mês/Ano', 'ContaContabil'])['Valor'].sum().unstack(fill_value=0).reset_index()
     df_pivot["Contribuição Ajustada"] = (
         df_pivot.get("Receita Vendas ML", 0) +
         df_pivot.get("Receita Vendas SH", 0) -
-        (
-            abs(df_pivot.get("Compras de Mercadoria para Revenda", 0)) +
-            abs(df_pivot.get("Taxa / Comissão / Fretes - makeplace", 0)) +
-            abs(df_pivot.get("Impostos - DAS Simples Nacional", 0))
-        )
+        (abs(df_pivot.get("Compras de Mercadoria para Revenda", 0)) +
+         abs(df_pivot.get("Taxa / Comissão / Fretes - makeplace", 0)) +
+         abs(df_pivot.get("Impostos - DAS Simples Nacional", 0)))
     )
-
+    
     # ------------------------------
-    # MINI-GRÁFICO: MARGEM DE CONTRIBUIÇÃO
+    # Card e Mini-Gráfico da Margem de Contribuição Ajustada
     # ------------------------------
-    # Valor total da margem
+    # Valor total da margem (soma dos valores mensais)
     valor_total_mc = df_contrib["Contribuição Ajustada"].sum()
-    # Melhor mês
+    # Melhor mês: maior margem
     idx_melhor = df_contrib["Contribuição Ajustada"].idxmax()
     melhor_mes = df_contrib.loc[idx_melhor, "Mês/Ano"]
     valor_melhor_mes = df_contrib.loc[idx_melhor, "Contribuição Ajustada"]
-
-    # Mini-gráfico (sparkline)
+    
+    # Formata os valores em R$
+    valor_total_str = f"R$ {valor_total_mc:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    valor_melhor_mes_str = f"R$ {valor_melhor_mes:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    
+    # Mini-gráfico (sparkline) da evolução da margem
     fig_spark = px.line(
         df_contrib,
         x="Mês/Ano",
@@ -209,7 +207,6 @@ if df is not None:
         markers=True,
         title="",
     )
-    # Configurações para ficar "clean"
     fig_spark.update_layout(
         margin=dict(l=0, r=0, t=0, b=0),
         paper_bgcolor="rgba(0,0,0,0)",
@@ -219,25 +216,38 @@ if df is not None:
         font=dict(color="#FFFFFF"),
     )
     fig_spark.update_traces(line_color="#FFFFFF")
-
-    # Gráfico principal (linhas dash para contas e sólida para a margem)
+    fig_spark.update_yaxes(tickprefix="R$ ", tickformat=",.2f")
+    
+    # Exibe o card e o mini-gráfico
+    st.markdown(
+        f"""
+        <div class="mc-card">
+            <h2 style="margin-top: 0;">Margem de Contribuição Ajustada</h2>
+            <p style="font-size: 1.5rem; margin-bottom: 10px;">{valor_total_str}</p>
+            <p style="margin-bottom: 10px;">Melhor mês: {melhor_mes} — {valor_melhor_mes_str}</p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+    st.plotly_chart(fig_spark, use_container_width=True)
+    
+    # ------------------------------
+    # Gráfico de Evolução da Margem de Contribuição Ajustada (por Mês/Ano)
+    # ------------------------------
     fig_evol = go.Figure()
     x_vals = df_pivot["Mês/Ano"]
-    contas_interesse = [
-        "Receita Vendas ML", 
-        "Receita Vendas SH", 
-        "Compras de Mercadoria para Revenda", 
-        "Taxa / Comissão / Fretes - makeplace", 
-        "Impostos - DAS Simples Nacional"
-    ]
-    for c in contas_interesse:
-        if c in df_pivot.columns:
+    contas = ["Receita Vendas ML", "Receita Vendas SH", 
+              "Compras de Mercadoria para Revenda", 
+              "Taxa / Comissão / Fretes - makeplace", 
+              "Impostos - DAS Simples Nacional"]
+    for conta in contas:
+        if conta in df_pivot.columns:
             fig_evol.add_trace(
                 go.Scatter(
                     x=x_vals,
-                    y=df_pivot[c],
+                    y=df_pivot[conta],
                     mode="lines+markers",
-                    name=c,
+                    name=conta,
                     line=dict(dash="dash")
                 )
             )
@@ -255,7 +265,7 @@ if df is not None:
         yaxis_tickprefix="R$ ",
         yaxis_tickformat=",.2f"
     )
-
+    
     # ------------------------------------------------------------------------------
     # Abas do Dashboard
     # ------------------------------------------------------------------------------
@@ -359,26 +369,6 @@ if df is not None:
         else:
             st.write("Não há dados suficientes para exibir o gráfico de Entradas x Saídas.")
     
-        # -------------------------------------
-        # CARD DE MARGEM DE CONTRIBUIÇÃO + MINI-GRÁFICO
-        # -------------------------------------
-        # Formatação dos valores em Real
-        valor_total_str = f"R$ {valor_total_mc:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-        valor_melhor_mes_str = f"R$ {valor_melhor_mes:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-        
-        st.markdown(
-            f"""
-            <div class="mc-card">
-                <h2 style="margin-top: 0;">Margem de Contribuição</h2>
-                <p style="font-size: 1.5rem; margin-bottom: 10px;">{valor_total_str}</p>
-                <p style="margin-bottom: 10px;">Melhor mês: {melhor_mes} — {valor_melhor_mes_str}</p>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-        # Exibe o mini-gráfico (sparkline)
-        st.plotly_chart(fig_spark, use_container_width=True)
-
         st.subheader("Evolução da Contribuição Ajustada (por Mês/Ano)")
         with st.container():
             st.plotly_chart(fig_evol, use_container_width=True)
@@ -428,7 +418,6 @@ if df is not None:
         resumo_pivot2.sort_values(by='Total', ascending=False, inplace=True)
         total_geral = pd.DataFrame(resumo_pivot2.sum(axis=0)).T
         total_geral.index = ['Total Geral']
-        # Reseta o índice para incluir a coluna ContaContabil na planilha
         resumo_pivot2 = pd.concat([resumo_pivot2, total_geral]).reset_index()
         xlsx_data = convert_df_to_xlsx(resumo_pivot2)
         st.download_button(
@@ -443,9 +432,4 @@ else:
 # ------------------------------------------------------------------------------
 # Footer personalizado
 # ------------------------------------------------------------------------------
-st.markdown(
-    '<div style="text-align:center; color:#7F8C8D; font-size:0.8rem;">'
-    'Dashboard desenvolvido por [Seu Nome] - 2025'
-    '</div>', 
-    unsafe_allow_html=True
-)
+st.markdown('<div style="text-align:center; color:#7F8C8D; font-size:0.8rem;">Dashboard desenvolvido por [Seu Nome] - 2025</div>', unsafe_allow_html=True)
