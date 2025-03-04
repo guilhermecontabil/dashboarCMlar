@@ -15,7 +15,7 @@ def formata_valor_brasil(valor):
         return ""
     return f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
-# CSS Global aprimorado:
+# CSS Global aprimorado + correção file_uploader:
 st.markdown("""
     <style>
     /* Configuração global: texto claro sobre fundo escuro */
@@ -65,6 +65,17 @@ st.markdown("""
         background-color: #3A4F63 !important;
         border: 1px solid #1ABC9C !important;
         color: #ECF0F1 !important;
+    }
+    /* Corrige o texto dentro do file_uploader (drag & drop) */
+    [data-testid="stFileUploadDropzone"] {
+        background-color: #3A4F63 !important;
+        border: 1px dashed #1ABC9C !important;
+        border-radius: 6px !important;
+    }
+    /* Força cor do texto e ícones dentro do file_uploader */
+    [data-testid="stFileUploadDropzone"] * {
+        color: #ECF0F1 !important;
+        font-weight: 500;
     }
     /* Separador */
     hr {
