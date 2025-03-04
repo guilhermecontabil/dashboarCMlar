@@ -22,7 +22,7 @@ def convert_df_to_xlsx(df):
 def formata_valor_brasil(valor):
     if pd.isnull(valor):
         return ""
-    # Formata número para o padrão brasileiro: milhar com ponto e decimal com vírgula
+    # Formata para padrão brasileiro: milhar com ponto e decimal com vírgula
     return f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 # ------------------------------------------------------------------------------
@@ -94,9 +94,8 @@ if df is not None:
     if select_all:
         selected_accounts_global = all_accounts
     else:
-        selected_accounts_global = st.sidebar.multiselect(
-            "Selecione as Contas (global):", options=all_accounts, default=all_accounts
-        )
+        selected_accounts_global = st.sidebar.multiselect("Selecione as Contas (global):", 
+                                                           options=all_accounts, default=all_accounts)
     df = df[df["ContaContabil"].isin(selected_accounts_global)]
 
 # ------------------------------------------------------------------------------
@@ -150,9 +149,10 @@ if df is not None:
         if col not in df.columns:
             df[col] = 0
     
-    # Cálculo da Margem de Contribuição (Contribuição Ajustada)
-    # Fórmula: (Receita Vendas ML + Receita Vendas SH) + (Despesas) 
-    # Como despesas já são negativas, a soma dos valores fornece o resultado correto.
+    # Cálculo da Margem de Contribuição (Contribuição Ajustada) por período
+    # Fórmula: (Receita Vendas ML + Receita Vendas SH) - (Compras de Mercadoria para Revenda +
+    #         Taxa/Comissão/Fretes - makeplace + Impostos - DAS Simples Nacional)
+    # Como os valores de despesas já estão negativos, a soma dos valores fornece o resultado correto.
     def calc_contribuicao_ajustada(grupo):
         receita_ml = grupo.loc[grupo["ContaContabil"] == "Receita Vendas ML", "Valor"].sum()
         receita_sh = grupo.loc[grupo["ContaContabil"] == "Receita Vendas SH", "Valor"].sum()
@@ -163,22 +163,22 @@ if df is not None:
             "Impostos - DAS Simples Nacional"
         ]), "Valor"].sum()
         return total_receita + total_despesas
-    
+
     df_contrib = df.groupby("Mês/Ano").apply(calc_contribuicao_ajustada).reset_index(name="Contribuição Ajustada")
     
     # Cria uma tabela pivot com os componentes para o gráfico de evolução
     df_pivot = df.groupby(['Mês/Ano', 'ContaContabil'])['Valor'].sum().unstack(fill_value=0).reset_index()
-    # Cálculo do total (Contribuição Ajustada): soma direta, pois despesas já estão negativas.
+    # Calcula a margem consolidada (Contribuição Ajustada) conforme a fórmula correta
     df_pivot["Contribuição Ajustada"] = (
         df_pivot.get("Receita Vendas ML", 0) +
-        df_pivot.get("Receita Vendas SH", 0) +
-        df_pivot.get("Compras de Mercadoria para Revenda", 0) +
-        df_pivot.get("Taxa / Comissão / Fretes - makeplace", 0) +
-        df_pivot.get("Impostos - DAS Simples Nacional", 0)
+        df_pivot.get("Receita Vendas SH", 0) -
+        (df_pivot.get("Compras de Mercadoria para Revenda", 0) +
+         df_pivot.get("Taxa / Comissão / Fretes - makeplace", 0) +
+         df_pivot.get("Impostos - DAS Simples Nacional", 0))
     )
     
     # ------------------------------------------------------------------------------
-    # Gráfico de Evolução: Exibe linhas individuais (dash) para contas e linha sólida para a margem
+    # Gráfico de Evolução: Exibe linhas individuais em dash para contas e linha sólida para a margem
     # ------------------------------------------------------------------------------
     fig_evol = go.Figure()
     x_vals = df_pivot["Mês/Ano"]
@@ -221,9 +221,13 @@ if df is not None:
     with tab1:
         st.markdown("<h2>Resumo por Conta Contábil</h2>", unsafe_allow_html=True)
         resumo = df.groupby(['ContaContabil', 'Mês/Ano'])['Valor'].sum().reset_index()
-        resumo_pivot = resumo.pivot(index='ContaContabil', columns='Mês/Ano', values='Valor').fillna(0)
+        resumo_pivot = resumo.pivot(index='ContaContábil', columns='Mês/Ano', values='Valor').fillna(0)
         resumo_pivot['Total'] = resumo_pivot.sum(axis=1)
+        # Ordena pelo total e adiciona uma linha "Total Geral"
         resumo_pivot.sort_values(by='Total', ascending=False, inplace=True)
+        total_geral = pd.DataFrame(resumo_pivot.sum(axis=0)).T
+        total_geral.index = ['Total Geral']
+        resumo_pivot = pd.concat([resumo_pivot, total_geral])
         with st.container():
             st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
             st.table(resumo_pivot.style.format(lambda x: formata_valor_brasil(x)))
@@ -358,6 +362,10 @@ if df is not None:
         resumo_pivot2 = resumo2.pivot(index='ContaContabil', columns='Mês/Ano', values='Valor').fillna(0)
         resumo_pivot2['Total'] = resumo_pivot2.sum(axis=1)
         resumo_pivot2.sort_values(by='Total', ascending=False, inplace=True)
+        # Cria a linha "Total Geral"
+        total_geral = pd.DataFrame(resumo_pivot2.sum(axis=0)).T
+        total_geral.index = ['Total Geral']
+        resumo_pivot2 = pd.concat([resumo_pivot2, total_geral])
         xlsx_data = convert_df_to_xlsx(resumo_pivot2)
         st.download_button(
             label="💾 Exportar Resumo para XLSX",
@@ -371,4 +379,4 @@ else:
 # ------------------------------------------------------------------------------
 # Footer personalizado
 # ------------------------------------------------------------------------------
-st.markdown('<div style="text-align:center; color:#7F8C8D; font-size:0.8rem;">Dashboard desenvolvido por [Seu Nome] - 2025</div>', unsafe_allow_html=True)
+st.markdown('<div style="text-align:center; color:#7F8C8D; font-size:0.8rem;">Dashboard desenvolvido por FOUR CONTABILIDADE - 2025</div>', unsafe_allow_html=True)
