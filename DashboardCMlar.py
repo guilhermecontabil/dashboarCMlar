@@ -134,19 +134,24 @@ if df is not None:
     col5.metric("Impostos (DAS) 🧾", formata_valor_brasil(total_das))
     
     # ------------------------------------------------------------------------------
-    # Criação da coluna "Contribuição Ajustada"
+    # Cálculo da Contribuição Ajustada (consolidado por Mês/Ano)
     # ------------------------------------------------------------------------------
-    # Certifique-se de que as colunas abaixo existem no DataFrame:
-    # "Receita Vendas ML", "Receita Vendas SH", "Compras de Mercadoria para Revenda",
-    # "Taxa / Comissão / Fretes - makeplace" e "Impostos - DAS Simples Nacional"
-    df["Contribuicao Ajustada"] = (df["Receita Vendas ML"] + df["Receita Vendas SH"]) - (
-        df["Compras de Mercadoria para Revenda"] +
-        df["Taxa / Comissão / Fretes - makeplace"] +
-        df["Impostos - DAS Simples Nacional"]
-    )
+    # Para cada período, a Contribuição Ajustada será:
+    # (Receita Vendas ML + Receita Vendas SH) - (Compras de Mercadoria para Revenda + 
+    # Taxa / Comissão / Fretes - makeplace + Impostos - DAS Simples Nacional)
+    def calc_contribuicao_ajustada(grupo):
+        receita_ml = grupo.loc[grupo["ContaContabil"] == "Receita Vendas ML", "Valor"].sum()
+        receita_sh = grupo.loc[grupo["ContaContabil"] == "Receita Vendas SH", "Valor"].sum()
+        compras = grupo.loc[grupo["ContaContabil"] == "Compras de Mercadoria para Revenda", "Valor"].sum()
+        taxa = grupo.loc[grupo["ContaContabil"] == "Taxa / Comissão / Fretes - makeplace", "Valor"].sum()
+        impostos = grupo.loc[grupo["ContaContabil"] == "Impostos - DAS Simples Nacional", "Valor"].sum()
+        return (receita_ml + receita_sh) - (compras + taxa + impostos)
     
-    # Criação da coluna de agrupamento por mês/ano
+    # Cria uma coluna "Mês/Ano" para agrupar os dados
     df['Mês/Ano'] = df['Data'].dt.to_period('M').astype(str)
+    
+    # Aplica a função de cálculo por grupo
+    df_contrib = df.groupby("Mês/Ano").apply(calc_contribuicao_ajustada).reset_index(name="Contribuicao Ajustada")
     
     # ------------------------------------------------------------------------------
     # Abas do Dashboard
@@ -174,9 +179,8 @@ if df is not None:
             st.table(df_sorted.style.format({'Valor': lambda x: formata_valor_brasil(x)}))
             st.markdown("</div>", unsafe_allow_html=True)
     
-    # ABA 3: Gráficos (incluindo o novo gráfico de Contribuição Ajustada)
+    # ABA 3: Gráficos
     with tab3:
-        # Gráfico de Entradas
         st.subheader("Entradas (Valores Positivos)")
         df_positivo = df[df['Valor'] > 0]
         df_positivo_agrupado = df_positivo.groupby('ContaContabil')['Valor'].sum().reset_index()
@@ -199,7 +203,6 @@ if df is not None:
         else:
             st.write("Não há valores positivos para exibir.")
     
-        # Gráfico de Saídas
         st.subheader("Saídas (Valores Negativos)")
         df_negativo = df[df['Valor'] < 0]
         df_negativo_agrupado = df_negativo.groupby('ContaContabil')['Valor'].sum().abs().reset_index()
@@ -223,7 +226,6 @@ if df is not None:
         else:
             st.write("Não há valores negativos para exibir.")
     
-        # Gráfico de Entradas x Saídas por Mês/Ano
         st.subheader("Entradas x Saídas (por Mês/Ano)")
         df_entradas_mensal = df[df['Valor'] > 0].groupby('Mês/Ano')['Valor'].sum().reset_index()
         df_saidas_mensal = df[df['Valor'] < 0].groupby('Mês/Ano')['Valor'].sum().reset_index()
@@ -250,10 +252,8 @@ if df is not None:
         else:
             st.write("Não há dados suficientes para exibir o gráfico de Entradas x Saídas.")
     
-        # Novo gráfico: Contribuição Ajustada
+        # Novo gráfico: Evolução da Contribuição Ajustada
         st.subheader("Contribuição Ajustada (por Mês/Ano)")
-        # Agrupa a contribuição ajustada por Mês/Ano (soma os valores)
-        df_contrib = df.groupby('Mês/Ano')["Contribuicao Ajustada"].sum().reset_index()
         if not df_contrib.empty:
             fig_contrib = px.line(
                 df_contrib,
