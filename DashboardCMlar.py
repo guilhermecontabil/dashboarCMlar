@@ -21,7 +21,7 @@ def convert_df_to_xlsx(df):
 def formata_valor_brasil(valor):
     if pd.isnull(valor):
         return ""
-    # Formata número para o padrão brasileiro: milhar com ponto, decimal com vírgula
+    # Formata número para o padrão brasileiro: milhar com ponto e decimal com vírgula
     return f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 # ------------------------------------------------------------------------------
@@ -69,12 +69,11 @@ components.html(
 )
 
 # ------------------------------------------------------------------------------
-# Sidebar: Upload, Filtros e Seleção dos Componentes para Evolução
+# Sidebar: Upload de arquivo e filtros
 # ------------------------------------------------------------------------------
 st.sidebar.title("⚙️ Configurações")
-
-# Upload do arquivo
 uploaded_file = st.sidebar.file_uploader("📥 Importar arquivo Excel", type=["xlsx"])
+
 if uploaded_file is not None:
     with st.spinner("Carregando arquivo..."):
         df = pd.read_excel(uploaded_file)
@@ -85,21 +84,6 @@ elif 'df' in st.session_state:
 else:
     df = None
     st.sidebar.warning("Por favor, faça o upload de um arquivo Excel para começar.")
-
-# Seleção dos componentes para a evolução, na sidebar
-evol_options = st.sidebar.multiselect(
-    "Componentes para Evolução:",
-    options=["Receita Vendas ML", "Receita Vendas SH", 
-             "Compras de Mercadoria para Revenda", 
-             "Taxa / Comissão / Fretes - makeplace", 
-             "Impostos - DAS Simples Nacional", 
-             "Contribuição Ajustada"],
-    default=["Receita Vendas ML", "Receita Vendas SH", 
-             "Compras de Mercadoria para Revenda", 
-             "Taxa / Comissão / Fretes - makeplace", 
-             "Impostos - DAS Simples Nacional", 
-             "Contribuição Ajustada"]
-)
 
 # ------------------------------------------------------------------------------
 # Execução do Dashboard (se houver dados)
@@ -168,39 +152,38 @@ if df is not None:
     # ------------------------------------------------------------------------------
     # Fórmula: (Receita Vendas ML + Receita Vendas SH) - 
     #          (Compras de Mercadoria para Revenda + Taxa/Comissão/Fretes - makeplace + Impostos - DAS Simples Nacional)
+    # Como os valores de despesas já estão negativos, basta somá-los.
     def calc_contribuicao_ajustada(grupo):
         receita_ml = grupo.loc[grupo["ContaContabil"] == "Receita Vendas ML", "Valor"].sum()
         receita_sh = grupo.loc[grupo["ContaContabil"] == "Receita Vendas SH", "Valor"].sum()
         total_receita = receita_ml + receita_sh
-
-        # Como os valores de despesas já estão negativos, basta somá-los
         total_despesas = grupo.loc[grupo["ContaContabil"].isin([
             "Compras de Mercadoria para Revenda",
             "Taxa / Comissão / Fretes - makeplace",
             "Impostos - DAS Simples Nacional"
         ]), "Valor"].sum()
-        return total_receita + total_despesas
+        return total_receita + total_despesas  # como despesas são negativas
     
-    df_contrib = df.groupby("Mês/Ano").apply(calc_contribuicao_ajustada).reset_index(name="Contribuicao Ajustada")
+    df_contrib = df.groupby("Mês/Ano").apply(calc_contribuicao_ajustada).reset_index(name="Contribuição Ajustada")
     
     # ------------------------------------------------------------------------------
     # Evolução da Contribuição Ajustada (por Mês/Ano)
     # ------------------------------------------------------------------------------
-    # Pivot: cada componente em colunas
+    # Criamos um pivot dos dados por Mês/Ano para os componentes relevantes e o total
     df_pivot = df.groupby(['Mês/Ano', 'ContaContabil'])['Valor'].sum().unstack(fill_value=0).reset_index()
-    # Cálculo do total conforme a fórmula
+    # Cálculo do total (Contribuição Ajustada) conforme a fórmula:
+    # Como as despesas já são negativas, somamos diretamente
     df_pivot["Contribuição Ajustada"] = (
         df_pivot.get("Receita Vendas ML", 0) +
-        df_pivot.get("Receita Vendas SH", 0) -
-        (df_pivot.get("Compras de Mercadoria para Revenda", 0) +
-         df_pivot.get("Taxa / Comissão / Fretes - makeplace", 0) +
-         df_pivot.get("Impostos - DAS Simples Nacional", 0))
+        df_pivot.get("Receita Vendas SH", 0) +
+        df_pivot.get("Compras de Mercadoria para Revenda", 0) +
+        df_pivot.get("Taxa / Comissão / Fretes - makeplace", 0) +
+        df_pivot.get("Impostos - DAS Simples Nacional", 0)
     )
     
-    # Seleciona os componentes a exibir (a opção vem da sidebar)
-    cols_to_plot = ["Mês/Ano"] + evol_options
-    df_evol = df_pivot[cols_to_plot]
-    df_evol_long = df_evol.melt(id_vars="Mês/Ano", value_vars=evol_options,
+    # Agora, para o gráfico de evolução, removemos a seleção de componentes e exibimos somente a evolução da margem
+    df_evol = df_pivot[["Mês/Ano", "Contribuição Ajustada"]]
+    df_evol_long = df_evol.melt(id_vars="Mês/Ano", value_vars=["Contribuição Ajustada"],
                                 var_name="Componente", value_name="Valor")
     
     fig_evol = px.line(
