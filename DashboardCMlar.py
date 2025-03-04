@@ -22,7 +22,7 @@ def convert_df_to_xlsx(df):
 def formata_valor_brasil(valor):
     if pd.isnull(valor):
         return ""
-    # Formata número para o padrão brasileiro: milhar com ponto e decimal com vírgula
+    # Formata para padrão brasileiro: milhar com ponto e decimal com vírgula
     return f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 # ------------------------------------------------------------------------------
@@ -90,8 +90,13 @@ else:
 # Se a base estiver disponível, permite filtrar globalmente as contas
 if df is not None:
     all_accounts = sorted(df["ContaContabil"].unique())
-    selected_accounts_global = st.sidebar.multiselect("Selecione as Contas (global):", 
-                                                      options=all_accounts, default=all_accounts)
+    select_all = st.sidebar.checkbox("Selecionar todas as contas", value=True)
+    if select_all:
+        selected_accounts_global = all_accounts
+    else:
+        selected_accounts_global = st.sidebar.multiselect(
+            "Selecione as Contas (global):", options=all_accounts, default=all_accounts
+        )
     df = df[df["ContaContabil"].isin(selected_accounts_global)]
 
 # ------------------------------------------------------------------------------
@@ -159,8 +164,9 @@ if df is not None:
     # ------------------------------------------------------------------------------
     # Cálculo da Margem de Contribuição (Contribuição Ajustada) por período
     # ------------------------------------------------------------------------------
-    # Fórmula: (Receita Vendas ML + Receita Vendas SH) + (Despesas) 
-    # Como despesas já são negativas, a soma fornece a margem correta.
+    # Fórmula: (Receita Vendas ML + Receita Vendas SH) - (Compras de Mercadoria para Revenda +
+    #         Taxa/Comissão/Fretes - makeplace + Impostos - DAS Simples Nacional)
+    # Como os valores de despesas já estão negativos, basta somá-los.
     def calc_contribuicao_ajustada(grupo):
         receita_ml = grupo.loc[grupo["ContaContabil"] == "Receita Vendas ML", "Valor"].sum()
         receita_sh = grupo.loc[grupo["ContaContabil"] == "Receita Vendas SH", "Valor"].sum()
@@ -171,28 +177,27 @@ if df is not None:
             "Impostos - DAS Simples Nacional"
         ]), "Valor"].sum()
         return total_receita + total_despesas
-    
+
     df_contrib = df.groupby("Mês/Ano").apply(calc_contribuicao_ajustada).reset_index(name="Contribuição Ajustada")
     
     # ------------------------------------------------------------------------------
     # Cria uma tabela pivot com os componentes para o gráfico de evolução
     # ------------------------------------------------------------------------------
     df_pivot = df.groupby(['Mês/Ano', 'ContaContabil'])['Valor'].sum().unstack(fill_value=0).reset_index()
-    # Cálculo da margem consolidada (Contribuição Ajustada) – soma simples
+    # Calcula o total (Contribuição Ajustada) conforme a fórmula
     df_pivot["Contribuição Ajustada"] = (
         df_pivot.get("Receita Vendas ML", 0) +
-        df_pivot.get("Receita Vendas SH", 0) +
-        df_pivot.get("Compras de Mercadoria para Revenda", 0) +
-        df_pivot.get("Taxa / Comissão / Fretes - makeplace", 0) +
-        df_pivot.get("Impostos - DAS Simples Nacional", 0)
+        df_pivot.get("Receita Vendas SH", 0) -
+        (df_pivot.get("Compras de Mercadoria para Revenda", 0) +
+         df_pivot.get("Taxa / Comissão / Fretes - makeplace", 0) +
+         df_pivot.get("Impostos - DAS Simples Nacional", 0))
     )
     
     # ------------------------------------------------------------------------------
-    # Gráfico de Evolução: Linhas individuais (dash) e Margem Consolidada (solid)
+    # Gráfico de Evolução: Linhas individuais em dash e margem consolidada em solid
     # ------------------------------------------------------------------------------
     fig_evol = go.Figure()
     x_vals = df_pivot["Mês/Ano"]
-    # Lista de contas individuais (das quais serão exibidas as linhas pontilhadas)
     contas = ["Receita Vendas ML", "Receita Vendas SH", 
               "Compras de Mercadoria para Revenda", 
               "Taxa / Comissão / Fretes - makeplace", 
@@ -208,7 +213,6 @@ if df is not None:
                     line=dict(dash="dash")
                 )
             )
-    # Adiciona a trace consolidada para a margem
     fig_evol.add_trace(
         go.Scatter(
             x=x_vals,
@@ -383,4 +387,4 @@ else:
 # ------------------------------------------------------------------------------
 # Footer personalizado
 # ------------------------------------------------------------------------------
-st.markdown('<div style="text-align:center; color:#7F8C8D; font-size:0.8rem;">Dashboard desenvolvido por [Seu Nome] - 2025</div>', unsafe_allow_html=True)
+st.markdown('<div style="text-align:center; color:#7F8C8D; font-size:0.8rem;">Dashboard desenvolvido por FOUR CONTABILIDADE - 2025</div>', unsafe_allow_html=True)
