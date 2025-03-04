@@ -24,68 +24,36 @@ def formata_valor_brasil(valor):
     return f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 # ------------------------------------------------------------------------------
-# Seleção de Tema na Sidebar
+# Injeção de CSS para customização visual
 # ------------------------------------------------------------------------------
-theme = st.sidebar.selectbox("Selecione o Tema", ["Dark", "Retro"], index=0)
-
-# Injeção de CSS de acordo com o tema selecionado
-if theme == "Dark":
-    css = """
+st.markdown(
+    """
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&family=Roboto&display=swap');
     html, body, [class*="css"] {
         font-family: 'Roboto', sans-serif;
     }
-    /* Fundo da aplicação */
-    .main { background: #121212; }
-    /* Cabeçalho com gradiente escuro */
+    .main {
+        background: #f0f2f6;
+    }
     .header {
         text-align: center;
         padding: 30px;
-        background: linear-gradient(135deg, #000000, #434343);
+        background: linear-gradient(135deg, #6a11cb, #2575fc);
         color: white;
         border-radius: 10px;
         margin-bottom: 20px;
     }
-    /* Containers dos gráficos e dados */
     .chart-container, .data-container {
-        background: #1e1e1e;
-        padding: 20px;
-        border-radius: 8px;
-        margin-bottom: 20px;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-    }
-    </style>
-    """
-elif theme == "Retro":
-    css = """
-    <style>
-    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&family=Roboto&display=swap');
-    html, body, [class*="css"] {
-        font-family: 'Roboto', sans-serif;
-    }
-    /* Fundo da aplicação */
-    .main { background: #fdf6e3; }
-    /* Cabeçalho com gradiente retro */
-    .header {
-        text-align: center;
-        padding: 30px;
-        background: linear-gradient(135deg, #ff7e67, #ffb347);
-        color: #2e2e2e;
-        border-radius: 10px;
-        margin-bottom: 20px;
-    }
-    /* Containers dos gráficos e dados */
-    .chart-container, .data-container {
-        background: #fff8e1;
+        background: white;
         padding: 20px;
         border-radius: 8px;
         margin-bottom: 20px;
         box-shadow: 0 4px 8px rgba(0,0,0,0.1);
     }
     </style>
-    """
-st.markdown(css, unsafe_allow_html=True)
+    """, unsafe_allow_html=True
+)
 
 # ------------------------------------------------------------------------------
 # Cabeçalho customizado
@@ -166,6 +134,21 @@ if df is not None:
     col5.metric("Impostos (DAS) 🧾", formata_valor_brasil(total_das))
     
     # ------------------------------------------------------------------------------
+    # Criação da coluna "Contribuição Ajustada"
+    # ------------------------------------------------------------------------------
+    # Certifique-se de que as colunas abaixo existem no DataFrame:
+    # "Receita Vendas ML", "Receita Vendas SH", "Compras de Mercadoria para Revenda",
+    # "Taxa / Comissão / Fretes - makeplace" e "Impostos - DAS Simples Nacional"
+    df["Contribuicao Ajustada"] = (df["Receita Vendas ML"] + df["Receita Vendas SH"]) - (
+        df["Compras de Mercadoria para Revenda"] +
+        df["Taxa / Comissão / Fretes - makeplace"] +
+        df["Impostos - DAS Simples Nacional"]
+    )
+    
+    # Criação da coluna de agrupamento por mês/ano
+    df['Mês/Ano'] = df['Data'].dt.to_period('M').astype(str)
+    
+    # ------------------------------------------------------------------------------
     # Abas do Dashboard
     # ------------------------------------------------------------------------------
     tab1, tab2, tab3, tab4 = st.tabs(["📊 Resumo", "📄 Dados", "📈 Gráficos", "💾 Exportação"])
@@ -173,7 +156,6 @@ if df is not None:
     # ABA 1: Resumo
     with tab1:
         st.markdown("<h2>Resumo por Conta Contábil</h2>", unsafe_allow_html=True)
-        df['Mês/Ano'] = df['Data'].dt.to_period('M').astype(str)
         resumo = df.groupby(['ContaContabil', 'Mês/Ano'])['Valor'].sum().reset_index()
         resumo_pivot = resumo.pivot(index='ContaContabil', columns='Mês/Ano', values='Valor').fillna(0)
         resumo_pivot['Total'] = resumo_pivot.sum(axis=1)
@@ -192,8 +174,9 @@ if df is not None:
             st.table(df_sorted.style.format({'Valor': lambda x: formata_valor_brasil(x)}))
             st.markdown("</div>", unsafe_allow_html=True)
     
-    # ABA 3: Gráficos
+    # ABA 3: Gráficos (incluindo o novo gráfico de Contribuição Ajustada)
     with tab3:
+        # Gráfico de Entradas
         st.subheader("Entradas (Valores Positivos)")
         df_positivo = df[df['Valor'] > 0]
         df_positivo_agrupado = df_positivo.groupby('ContaContabil')['Valor'].sum().reset_index()
@@ -216,6 +199,7 @@ if df is not None:
         else:
             st.write("Não há valores positivos para exibir.")
     
+        # Gráfico de Saídas
         st.subheader("Saídas (Valores Negativos)")
         df_negativo = df[df['Valor'] < 0]
         df_negativo_agrupado = df_negativo.groupby('ContaContabil')['Valor'].sum().abs().reset_index()
@@ -227,7 +211,7 @@ if df is not None:
                 x='Valor',
                 orientation='h',
                 title='Top 5 Categorias de Saídas',
-                labels={'Valor': 'Valor (R$)', 'ContaContabil': 'Conta Contábil'},
+                labels={'Valor': 'Valor (R$)', 'ContaContábil': 'Conta Contábil'},
                 template='plotly_white'
             )
             fig_saidas.update_layout(yaxis={'categoryorder': 'total ascending'})
@@ -239,6 +223,7 @@ if df is not None:
         else:
             st.write("Não há valores negativos para exibir.")
     
+        # Gráfico de Entradas x Saídas por Mês/Ano
         st.subheader("Entradas x Saídas (por Mês/Ano)")
         df_entradas_mensal = df[df['Valor'] > 0].groupby('Mês/Ano')['Valor'].sum().reset_index()
         df_saidas_mensal = df[df['Valor'] < 0].groupby('Mês/Ano')['Valor'].sum().reset_index()
@@ -265,6 +250,29 @@ if df is not None:
         else:
             st.write("Não há dados suficientes para exibir o gráfico de Entradas x Saídas.")
     
+        # Novo gráfico: Contribuição Ajustada
+        st.subheader("Contribuição Ajustada (por Mês/Ano)")
+        # Agrupa a contribuição ajustada por Mês/Ano (soma os valores)
+        df_contrib = df.groupby('Mês/Ano')["Contribuicao Ajustada"].sum().reset_index()
+        if not df_contrib.empty:
+            fig_contrib = px.line(
+                df_contrib,
+                x='Mês/Ano',
+                y="Contribuicao Ajustada",
+                title="Evolução da Contribuição Ajustada",
+                markers=True,
+                labels={'Contribuicao Ajustada': 'Contribuição Ajustada (R$)'},
+                template='plotly_white'
+            )
+            fig_contrib.update_yaxes(tickprefix="R$ ", tickformat=",.2f")
+            with st.container():
+                st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
+                st.plotly_chart(fig_contrib, use_container_width=True)
+                st.markdown("</div>", unsafe_allow_html=True)
+        else:
+            st.write("Não há dados para exibir a Contribuição Ajustada.")
+    
+        # Gráfico de Comparação: (Receita Vendas ML + SH) vs (Impostos - DAS Simples Nacional)
         st.subheader("Comparação: (Receita Vendas ML + SH) vs (Impostos - DAS Simples Nacional)")
         df_receitas = df[df['ContaContabil'].isin(['Receita Vendas ML', 'Receita Vendas SH'])]
         df_receitas_mensal = df_receitas.groupby('Mês/Ano')['Valor'].sum().reset_index()
@@ -299,7 +307,9 @@ if df is not None:
         else:
             st.write("Não há dados para gerar a comparação entre Receitas e Impostos (DAS).")
     
+    # ------------------------------------------------------------------------------
     # ABA 4: Exportação (arquivo XLSX)
+    # ------------------------------------------------------------------------------
     with tab4:
         st.subheader("Exportar Resumo")
         resumo2 = df.groupby(['ContaContabil', 'Mês/Ano'])['Valor'].sum().reset_index()
