@@ -73,7 +73,6 @@ components.html(
 # Sidebar: Upload de arquivo e filtros
 # ------------------------------------------------------------------------------
 st.sidebar.title("⚙️ Configurações")
-
 uploaded_file = st.sidebar.file_uploader("📥 Importar arquivo Excel", type=["xlsx"])
 
 if uploaded_file is not None:
@@ -136,18 +135,17 @@ if df is not None:
     col5.metric("Impostos (DAS) 🧾", formata_valor_brasil(total_das))
     
     # ------------------------------------------------------------------------------
-    # Garantir que as colunas para a análise da Contribuição Ajustada existam
+    # Garantir que as colunas para o cálculo da Contribuição Ajustada existam
     # ------------------------------------------------------------------------------
     required_cols = ["Receita Vendas ML", "Receita Vendas SH", "Compras de Mercadoria para Revenda", 
                      "Taxa / Comissão / Fretes - makeplace", "Impostos - DAS Simples Nacional"]
     for col in required_cols:
         if col not in df.columns:
-            df[col] = 0  # Cria a coluna com valor zero se estiver faltando
+            df[col] = 0
     
     # ------------------------------------------------------------------------------
     # Cálculo da Contribuição Ajustada por período (consolidação por Mês/Ano)
     # ------------------------------------------------------------------------------
-    # Para cada período:
     # Contribuição Ajustada = (Receita Vendas ML + Receita Vendas SH) - 
     #                         (Compras de Mercadoria para Revenda + Taxa/Comissão/Fretes - makeplace + Impostos - DAS Simples Nacional)
     def calc_contribuicao_ajustada(grupo):
@@ -165,7 +163,7 @@ if df is not None:
     df_contrib = df.groupby("Mês/Ano").apply(calc_contribuicao_ajustada).reset_index(name="Contribuicao Ajustada")
     
     # ------------------------------------------------------------------------------
-    # Novo gráfico: Composição da Contribuição Ajustada (Barras Empilhadas)
+    # Gráfico: Composição da Contribuição Ajustada (Barras Empilhadas)
     # ------------------------------------------------------------------------------
     # Agrupa os componentes por período
     df_components = df.groupby("Mês/Ano").agg({
@@ -176,23 +174,35 @@ if df is not None:
         "Impostos - DAS Simples Nacional": "sum"
     }).reset_index()
     
-    # Para os custos, invertemos o sinal para exibir como valores negativos
-    for col in ["Compras de Mercadoria para Revenda", "Taxa / Comissão / Fretes - makeplace", "Impostos - DAS Simples Nacional"]:
-        df_components[col] = -df_components[col]
+    # Para o cálculo, invertemos o sinal dos custos
+    for col in ["Compras de Mercadoria para Revenda", 
+                "Taxa / Comissão / Fretes - makeplace", 
+                "Impostos - DAS Simples Nacional"]:
+        df_components[col] = - df_components[col]
     
-    # Calcula a Contribuição Ajustada para conferência (opcional)
-    df_components["Contribuicao Ajustada"] = (df_components["Receita Vendas ML"] +
-                                               df_components["Receita Vendas SH"] +
-                                               df_components["Compras de Mercadoria para Revenda"] +
-                                               df_components["Taxa / Comissão / Fretes - makeplace"] +
-                                               df_components["Impostos - DAS Simples Nacional"])
+    # Calcula a Contribuição Ajustada (opcional, para conferência)
+    df_components["Contribuicao Ajustada"] = (
+        df_components["Receita Vendas ML"] +
+        df_components["Receita Vendas SH"] +
+        df_components["Compras de Mercadoria para Revenda"] +
+        df_components["Taxa / Comissão / Fretes - makeplace"] +
+        df_components["Impostos - DAS Simples Nacional"]
+    )
     
-    # Cria o gráfico de barras empilhadas
+    # Cria uma cópia para apresentação gráfica onde os custos serão exibidos em valores absolutos
+    df_components_plot = df_components.copy()
+    for col in ["Compras de Mercadoria para Revenda", 
+                "Taxa / Comissão / Fretes - makeplace", 
+                "Impostos - DAS Simples Nacional"]:
+        df_components_plot[col] = df_components_plot[col].abs()
+    
     fig_components = px.bar(
-        df_components,
+        df_components_plot,
         x="Mês/Ano",
-        y=["Receita Vendas ML", "Receita Vendas SH", "Compras de Mercadoria para Revenda", 
-           "Taxa / Comissão / Fretes - makeplace", "Impostos - DAS Simples Nacional"],
+        y=["Receita Vendas ML", "Receita Vendas SH", 
+           "Compras de Mercadoria para Revenda", 
+           "Taxa / Comissão / Fretes - makeplace", 
+           "Impostos - DAS Simples Nacional"],
         barmode="stack",
         title="Composição da Contribuição Ajustada"
     )
