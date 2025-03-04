@@ -15,35 +15,35 @@ def formata_valor_brasil(valor):
         return ""
     return f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
-# CSS Global: Muda a cor do texto para terracota (#E2725B), mantendo o fundo atual
+# CSS Global: Altera toda a cor do texto para verde neon (#39FF14)
 st.markdown("""
     <style>
-    /* Define que todo o texto da aplicação ficará em terracota */
+    /* Define que todo o texto da aplicação ficará em verde neon */
     html, body, [data-testid="stAppViewContainer"] * {
-        color: #E2725B !important;
+        color: #39FF14 !important;
     }
     /* Mantém o fundo atual e define a fonte */
     html, body, [data-testid="stAppViewContainer"], .main, .block-container {
         background-color: #2C3E50 !important;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
-    /* Títulos em terracota */
+    /* Títulos em verde neon */
     h1, h2, h3, h4, h5, h6 {
-        color: #E2725B !important;
+        color: #39FF14 !important;
     }
     /* Métricas */
     .stMetric-label {
         font-weight: bold !important;
-        color: #E2725B !important;
+        color: #39FF14 !important;
     }
     .stMetric-value {
         font-size: 1.5rem !important;
-        color: #E2725B !important;
+        color: #39FF14 !important;
     }
-    /* Botões: texto em terracota, fundo permanece */
+    /* Botões: texto em verde neon; fundo permanece */
     .stButton > button {
         background-color: #1ABC9C !important;
-        color: #E2725B !important;
+        color: #39FF14 !important;
         border-radius: 8px !important;
         font-weight: bold !important;
         border: none !important;
@@ -54,28 +54,28 @@ st.markdown("""
         transform: scale(1.05);
         box-shadow: 0 6px 8px rgba(0,0,0,0.3);
     }
-    /* Sidebar: texto em terracota */
+    /* Sidebar: texto em verde neon */
     [data-testid="stSidebar"] {
         background-color: #34495E !important;
     }
     [data-testid="stSidebar"] .css-1d391kg {
-        color: #E2725B !important;
+        color: #39FF14 !important;
         font-weight: bold !important;
     }
-    /* Inputs e sliders: texto em terracota */
+    /* Inputs e sliders: texto em verde neon */
     input, .st-bj, .st-at, .stTextInput, .stDateInput {
         background-color: #3A4F63 !important;
         border: 1px solid #1ABC9C !important;
-        color: #E2725B !important;
+        color: #39FF14 !important;
     }
-    /* File uploader: fundo branco e texto em terracota */
+    /* File uploader: fundo branco e texto em verde neon */
     [data-testid="stFileUploadDropzone"] {
         background-color: #FFFFFF !important;
         border: 1px dashed #1ABC9C !important;
         border-radius: 6px !important;
     }
     [data-testid="stFileUploadDropzone"] * {
-        color: #E2725B !important;
+        color: #39FF14 !important;
         font-weight: 500;
     }
     /* Separador */
@@ -178,15 +178,15 @@ if df is not None:
             .set_table_styles([
                 {'selector': 'thead tr th',
                  'props': [('background-color', '#2C3E50'),
-                           ('color', '#E2725B'),
+                           ('color', '#39FF14'),
                            ('font-weight', 'bold')]},
                 {'selector': 'tbody tr th',
                  'props': [('background-color', '#2C3E50'),
-                           ('color', '#E2725B'),
+                           ('color', '#39FF14'),
                            ('font-weight', 'bold')]},
                 {'selector': 'tbody tr td',
                  'props': [('background-color', '#2C3E50'),
-                           ('color', '#E2725B')]}
+                           ('color', '#39FF14')]}
             ])
             .format(lambda x: formata_valor_brasil(x))
         )
@@ -202,15 +202,15 @@ if df is not None:
             .set_table_styles([
                 {'selector': 'thead tr th',
                  'props': [('background-color', '#2C3E50'),
-                           ('color', '#E2725B'),
+                           ('color', '#39FF14'),
                            ('font-weight', 'bold')]},
                 {'selector': 'tbody tr th',
                  'props': [('background-color', '#2C3E50'),
-                           ('color', '#E2725B'),
+                           ('color', '#39FF14'),
                            ('font-weight', 'bold')]},
                 {'selector': 'tbody tr td',
                  'props': [('background-color', '#2C3E50'),
-                           ('color', '#E2725B')]}
+                           ('color', '#39FF14')]}
             ])
             .format({'Valor': lambda x: formata_valor_brasil(x)})
         )
@@ -237,7 +237,7 @@ if df is not None:
                 showlegend=False,
                 plot_bgcolor='rgba(0,0,0,0)',
                 paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(color='#E2725B')
+                font=dict(color='#39FF14')
             )
             fig_entradas.update_yaxes(tickprefix="R$ ", tickformat=",.2f")
             st.plotly_chart(fig_entradas, use_container_width=True)
@@ -264,7 +264,7 @@ if df is not None:
                 showlegend=False,
                 plot_bgcolor='rgba(0,0,0,0)',
                 paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(color='#E2725B')
+                font=dict(color='#39FF14')
             )
             fig_saidas.update_xaxes(tickprefix="R$ ", tickformat=",.2f")
             st.plotly_chart(fig_saidas, use_container_width=True)
@@ -293,7 +293,7 @@ if df is not None:
             fig_dre.update_layout(
                 plot_bgcolor='rgba(0,0,0,0)',
                 paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(color='#E2725B')
+                font=dict(color='#39FF14')
             )
             st.plotly_chart(fig_dre, use_container_width=True)
         else:
@@ -329,7 +329,7 @@ if df is not None:
             fig_comp.update_layout(
                 plot_bgcolor='rgba(0,0,0,0)',
                 paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(color='#E2725B')
+                font=dict(color='#39FF14')
             )
             st.plotly_chart(fig_comp, use_container_width=True)
         else:
