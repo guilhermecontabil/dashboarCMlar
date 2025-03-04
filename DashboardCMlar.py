@@ -16,8 +16,7 @@ def convert_df_to_xlsx(df):
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
         df.to_excel(writer, index=False, sheet_name='Resumo')
-    processed_data = output.getvalue()
-    return processed_data
+    return output.getvalue()
 
 def formata_valor_brasil(valor):
     if pd.isnull(valor):
@@ -29,6 +28,7 @@ def formata_valor_brasil(valor):
 # ------------------------------------------------------------------------------
 theme = st.sidebar.selectbox("Selecione o Tema", ["Dark", "Retro"], index=0)
 
+# Injeção de CSS de acordo com o tema selecionado
 if theme == "Dark":
     css = """
     <style>
@@ -36,9 +36,9 @@ if theme == "Dark":
     html, body, [class*="css"] {
         font-family: 'Roboto', sans-serif;
     }
-    .main {
-        background: #121212;
-    }
+    /* Fundo da aplicação */
+    .main { background: #121212; }
+    /* Cabeçalho com gradiente escuro */
     .header {
         text-align: center;
         padding: 30px;
@@ -47,6 +47,7 @@ if theme == "Dark":
         border-radius: 10px;
         margin-bottom: 20px;
     }
+    /* Containers dos gráficos e dados */
     .chart-container, .data-container {
         background: #1e1e1e;
         padding: 20px;
@@ -63,9 +64,9 @@ elif theme == "Retro":
     html, body, [class*="css"] {
         font-family: 'Roboto', sans-serif;
     }
-    .main {
-        background: #fdf6e3;
-    }
+    /* Fundo da aplicação */
+    .main { background: #fdf6e3; }
+    /* Cabeçalho com gradiente retro */
     .header {
         text-align: center;
         padding: 30px;
@@ -74,6 +75,7 @@ elif theme == "Retro":
         border-radius: 10px;
         margin-bottom: 20px;
     }
+    /* Containers dos gráficos e dados */
     .chart-container, .data-container {
         background: #fff8e1;
         padding: 20px;
@@ -98,7 +100,7 @@ components.html(
 )
 
 # ------------------------------------------------------------------------------
-# Sidebar: Upload e Filtros
+# Sidebar: Upload de arquivo e filtros
 # ------------------------------------------------------------------------------
 st.sidebar.title("⚙️ Configurações")
 
@@ -297,7 +299,7 @@ if df is not None:
         else:
             st.write("Não há dados para gerar a comparação entre Receitas e Impostos (DAS).")
     
-    # ABA 4: Exportação (em XLSX)
+    # ABA 4: Exportação (arquivo XLSX)
     with tab4:
         st.subheader("Exportar Resumo")
         resumo2 = df.groupby(['ContaContabil', 'Mês/Ano'])['Valor'].sum().reset_index()
