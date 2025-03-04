@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import streamlit.components.v1 as components
+import io
 
 # ------------------------------------------------------------------------------
 # Configuração da página
@@ -11,8 +12,12 @@ st.set_page_config(page_title="Dashboard Contábil", layout="wide")
 # ------------------------------------------------------------------------------
 # Funções auxiliares
 # ------------------------------------------------------------------------------
-def convert_df(df):
-    return df.to_csv(index=False).encode('utf-8')
+def convert_df_to_xlsx(df):
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df.to_excel(writer, index=False, sheet_name='Resumo')
+    processed_data = output.getvalue()
+    return processed_data
 
 def formata_valor_brasil(valor):
     if pd.isnull(valor):
@@ -20,39 +25,68 @@ def formata_valor_brasil(valor):
     return f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 # ------------------------------------------------------------------------------
-# Injeção de CSS para customização visual (layout e cores inspirados no exemplo fornecido)
+# Seleção de Tema na Sidebar
 # ------------------------------------------------------------------------------
-st.markdown(
-    """
+theme = st.sidebar.selectbox("Selecione o Tema", ["Dark", "Retro"], index=0)
+
+if theme == "Dark":
+    css = """
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&family=Roboto&display=swap');
     html, body, [class*="css"] {
         font-family: 'Roboto', sans-serif;
     }
     .main {
-        background: #f0f2f6;
+        background: #121212;
     }
     .header {
         text-align: center;
         padding: 30px;
-        background: linear-gradient(135deg, #6a11cb, #2575fc);
+        background: linear-gradient(135deg, #000000, #434343);
         color: white;
         border-radius: 10px;
         margin-bottom: 20px;
     }
     .chart-container, .data-container {
-        background: white;
+        background: #1e1e1e;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    </style>
+    """
+elif theme == "Retro":
+    css = """
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&family=Roboto&display=swap');
+    html, body, [class*="css"] {
+        font-family: 'Roboto', sans-serif;
+    }
+    .main {
+        background: #fdf6e3;
+    }
+    .header {
+        text-align: center;
+        padding: 30px;
+        background: linear-gradient(135deg, #ff7e67, #ffb347);
+        color: #2e2e2e;
+        border-radius: 10px;
+        margin-bottom: 20px;
+    }
+    .chart-container, .data-container {
+        background: #fff8e1;
         padding: 20px;
         border-radius: 8px;
         margin-bottom: 20px;
         box-shadow: 0 4px 8px rgba(0,0,0,0.1);
     }
     </style>
-    """, unsafe_allow_html=True
-)
+    """
+st.markdown(css, unsafe_allow_html=True)
 
 # ------------------------------------------------------------------------------
-# Cabeçalho customizado com HTML
+# Cabeçalho customizado
 # ------------------------------------------------------------------------------
 components.html(
     """
@@ -64,7 +98,7 @@ components.html(
 )
 
 # ------------------------------------------------------------------------------
-# Sidebar: Upload de arquivo e filtros
+# Sidebar: Upload e Filtros
 # ------------------------------------------------------------------------------
 st.sidebar.title("⚙️ Configurações")
 
@@ -89,7 +123,7 @@ if df is not None:
     df['Data'] = pd.to_datetime(df['Data'], dayfirst=True, errors='coerce')
     df['Valor'] = pd.to_numeric(df['Valor'], errors='coerce')
     
-    # Filtro de intervalo de datas
+    # Filtro: Intervalo de datas
     min_date = df['Data'].min()
     max_date = df['Data'].max()
     selected_dates = st.sidebar.date_input("Selecione o intervalo de datas:", [min_date, max_date])
@@ -97,23 +131,23 @@ if df is not None:
         start_date, end_date = selected_dates
         df = df[(df['Data'] >= pd.to_datetime(start_date)) & (df['Data'] <= pd.to_datetime(end_date))]
     
-    # Filtro por Grupo de Conta (caso a coluna exista)
+    # Filtro: Grupo de Conta (caso exista)
     if 'GrupoDeConta' in df.columns:
         grupos_unicos = df['GrupoDeConta'].dropna().unique()
         grupo_selecionado = st.sidebar.selectbox("🗂️ Filtrar por Grupo de Conta:", ["Todos"] + list(grupos_unicos))
         if grupo_selecionado != "Todos":
             df = df[df['GrupoDeConta'] == grupo_selecionado]
     
-    # Filtro por Conta Contábil
+    # Filtro: Conta Contábil
     filtro_conta = st.sidebar.text_input("🔍 Filtrar Conta Contábil:")
     if filtro_conta:
         df = df[df['ContaContabil'].str.contains(filtro_conta, case=False, na=False)]
     
-    # ------------------------------------------------------------------------------
-    # Cabeçalho de métricas
-    # ------------------------------------------------------------------------------
     st.markdown("<hr>", unsafe_allow_html=True)
     
+    # ------------------------------------------------------------------------------
+    # Métricas principais
+    # ------------------------------------------------------------------------------
     total_entradas = df[df['Valor'] > 0]['Valor'].sum()
     total_saidas = df[df['Valor'] < 0]['Valor'].sum()
     saldo = total_entradas + total_saidas
@@ -142,7 +176,6 @@ if df is not None:
         resumo_pivot = resumo.pivot(index='ContaContabil', columns='Mês/Ano', values='Valor').fillna(0)
         resumo_pivot['Total'] = resumo_pivot.sum(axis=1)
         resumo_pivot.sort_values(by='Total', ascending=False, inplace=True)
-        # Container para o resumo
         with st.container():
             st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
             st.table(resumo_pivot.style.format(lambda x: formata_valor_brasil(x)))
@@ -230,7 +263,7 @@ if df is not None:
         else:
             st.write("Não há dados suficientes para exibir o gráfico de Entradas x Saídas.")
     
-        st.subheader("Comparação: (Receita Vendas ML + SH) x (Impostos - DAS Simples Nacional)")
+        st.subheader("Comparação: (Receita Vendas ML + SH) vs (Impostos - DAS Simples Nacional)")
         df_receitas = df[df['ContaContabil'].isin(['Receita Vendas ML', 'Receita Vendas SH'])]
         df_receitas_mensal = df_receitas.groupby('Mês/Ano')['Valor'].sum().reset_index()
         df_receitas_mensal.rename(columns={'Valor': 'Receitas'}, inplace=True)
@@ -264,19 +297,19 @@ if df is not None:
         else:
             st.write("Não há dados para gerar a comparação entre Receitas e Impostos (DAS).")
     
-    # ABA 4: Exportação
+    # ABA 4: Exportação (em XLSX)
     with tab4:
         st.subheader("Exportar Resumo")
         resumo2 = df.groupby(['ContaContabil', 'Mês/Ano'])['Valor'].sum().reset_index()
         resumo_pivot2 = resumo2.pivot(index='ContaContabil', columns='Mês/Ano', values='Valor').fillna(0)
         resumo_pivot2['Total'] = resumo_pivot2.sum(axis=1)
         resumo_pivot2.sort_values(by='Total', ascending=False, inplace=True)
-        csv_data = convert_df(resumo_pivot2)
+        xlsx_data = convert_df_to_xlsx(resumo_pivot2)
         st.download_button(
-            label="💾 Exportar Resumo para CSV",
-            data=csv_data,
-            file_name='Resumo_ContaContabil.csv',
-            mime='text/csv'
+            label="💾 Exportar Resumo para XLSX",
+            data=xlsx_data,
+            file_name='Resumo_ContaContabil.xlsx',
+            mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         )
 else:
     st.warning("Por favor, faça o upload de um arquivo Excel para começar.")
