@@ -23,7 +23,7 @@ def formata_valor_brasil(valor):
     if pd.isnull(valor):
         return ""
     # Formata para o padrão brasileiro: milhar com ponto e decimal com vírgula
-    return f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 # ------------------------------------------------------------------------------
 # Injeção de CSS para customização visual
@@ -160,7 +160,7 @@ if df is not None:
         if col not in df.columns:
             df[col] = 0
     
-    # Cálculo da Margem de Contribuição Ajustada por período:
+    # Cálculo da Margem de Contribuição Ajustada por período
     # Fórmula: (Receita Vendas ML + Receita Vendas SH) - (|Compras de Mercadoria para Revenda| +
     #         |Taxa / Comissão / Fretes - makeplace| + |Impostos - DAS Simples Nacional|)
     def calc_contribuicao_ajustada(grupo):
@@ -175,8 +175,9 @@ if df is not None:
 
     df_contrib = df.groupby("Mês/Ano").apply(calc_contribuicao_ajustada).reset_index(name="Contribuição Ajustada")
     
-    # Cria uma tabela pivot com os componentes para o gráfico de evolução
+    # Cria pivot para o gráfico de evolução
     df_pivot = df.groupby(['Mês/Ano', 'ContaContabil'])['Valor'].sum().unstack(fill_value=0).reset_index()
+    # Cálculo da margem consolidada (Contribuição Ajustada) usando valor absoluto para despesas
     df_pivot["Contribuição Ajustada"] = (
         df_pivot.get("Receita Vendas ML", 0) +
         df_pivot.get("Receita Vendas SH", 0) -
@@ -188,37 +189,14 @@ if df is not None:
     # ------------------------------
     # Card e Mini-Gráfico da Margem de Contribuição Ajustada
     # ------------------------------
-    # Valor total da margem (soma dos valores mensais)
     valor_total_mc = df_contrib["Contribuição Ajustada"].sum()
-    # Melhor mês: maior margem
     idx_melhor = df_contrib["Contribuição Ajustada"].idxmax()
     melhor_mes = df_contrib.loc[idx_melhor, "Mês/Ano"]
     valor_melhor_mes = df_contrib.loc[idx_melhor, "Contribuição Ajustada"]
     
-    # Formata os valores em R$
     valor_total_str = f"R$ {valor_total_mc:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
     valor_melhor_mes_str = f"R$ {valor_melhor_mes:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
     
-    # Mini-gráfico (sparkline) da evolução da margem
-    fig_spark = px.line(
-        df_contrib,
-        x="Mês/Ano",
-        y="Contribuição Ajustada",
-        markers=True,
-        title="",
-    )
-    fig_spark.update_layout(
-        margin=dict(l=0, r=0, t=0, b=0),
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        xaxis_title="",
-        yaxis_title="",
-        font=dict(color="#FFFFFF"),
-    )
-    fig_spark.update_traces(line_color="#FFFFFF")
-    fig_spark.update_yaxes(tickprefix="R$ ", tickformat=",.2f")
-    
-    # Exibe o card e o mini-gráfico
     st.markdown(
         f"""
         <div class="mc-card">
@@ -229,10 +207,31 @@ if df is not None:
         """,
         unsafe_allow_html=True
     )
+    
+    # Mini-gráfico (sparkline) da evolução da margem de contribuição, em reais
+    fig_spark = px.line(
+        df_contrib,
+        x="Mês/Ano",
+        y="Contribuição Ajustada",
+        markers=True,
+        title=""
+    )
+    fig_spark.update_layout(
+        margin=dict(l=0, r=0, t=0, b=0),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        xaxis_title="",
+        yaxis_title="",
+        font=dict(color="#FFFFFF"),
+        height=150
+    )
+    fig_spark.update_traces(line_color="#FFFFFF")
+    fig_spark.update_yaxes(tickprefix="R$ ", tickformat=",.2f")
+    
     st.plotly_chart(fig_spark, use_container_width=True)
     
     # ------------------------------
-    # Gráfico de Evolução da Margem de Contribuição Ajustada (por Mês/Ano)
+    # Gráfico de Evolução da Margem de Contribuição Ajustada
     # ------------------------------
     fig_evol = go.Figure()
     x_vals = df_pivot["Mês/Ano"]
@@ -266,6 +265,35 @@ if df is not None:
         yaxis_tickformat=",.2f"
     )
     
+    # ------------------------------
+    # Novo Gráfico: Comparação (Receita Vendas ML+SH) vs (Compras de Mercadoria para Revenda)
+    # ------------------------------
+    df_receitas = df[df['ContaContabil'].isin(['Receita Vendas ML', 'Receita Vendas SH'])]
+    df_receitas_mensal = df_receitas.groupby('Mês/Ano')['Valor'].sum().reset_index()
+    df_receitas_mensal.rename(columns={'Valor': 'Receitas'}, inplace=True)
+    
+    df_compras = df[df['ContaContabil'] == 'Compras de Mercadoria para Revenda']
+    df_compras_mensal = df_compras.groupby('Mês/Ano')['Valor'].sum().reset_index()
+    # Utiliza o valor absoluto para as compras
+    df_compras_mensal['Compras'] = df_compras_mensal['Valor'].abs()
+    df_compras_mensal.drop(columns=['Valor'], inplace=True)
+    
+    df_comp = pd.merge(df_receitas_mensal, df_compras_mensal, on='Mês/Ano', how='outer').fillna(0)
+    df_comp_melt = df_comp.melt(id_vars='Mês/Ano', value_vars=['Receitas', 'Compras'],
+                                var_name='Tipo', value_name='Valor')
+    
+    fig_comp2 = px.bar(
+        df_comp_melt,
+        x='Mês/Ano',
+        y='Valor',
+        color='Tipo',
+        barmode='group',
+        title='(Receita Vendas ML + SH) vs (Compras de Mercadoria para Revenda)',
+        labels={'Valor': 'Valor (R$)'},
+        template='plotly_white'
+    )
+    fig_comp2.update_yaxes(tickprefix="R$ ", tickformat=",.2f")
+    
     # ------------------------------------------------------------------------------
     # Abas do Dashboard
     # ------------------------------------------------------------------------------
@@ -278,7 +306,6 @@ if df is not None:
         resumo_pivot = resumo.pivot(index='ContaContabil', columns='Mês/Ano', values='Valor').fillna(0)
         resumo_pivot['Total'] = resumo_pivot.sum(axis=1)
         resumo_pivot.sort_values(by='Total', ascending=False, inplace=True)
-        # Adiciona linha "Total Geral"
         total_geral = pd.DataFrame(resumo_pivot.sum(axis=0)).T
         total_geral.index = ['Total Geral']
         resumo_pivot = pd.concat([resumo_pivot, total_geral])
@@ -406,6 +433,39 @@ if df is not None:
                 st.markdown("</div>", unsafe_allow_html=True)
         else:
             st.write("Não há dados para gerar a comparação entre Receitas e Impostos (DAS).")
+        
+        # ------------------------------
+        # Novo Gráfico: Comparação (Receita Vendas ML+SH) vs (Compras de Mercadoria para Revenda)
+        # ------------------------------
+        st.subheader("Comparação: (Receita Vendas ML + SH) vs (Compras de Mercadoria para Revenda)")
+        df_receitas = df[df['ContaContabil'].isin(['Receita Vendas ML', 'Receita Vendas SH'])]
+        df_receitas_mensal = df_receitas.groupby('Mês/Ano')['Valor'].sum().reset_index()
+        df_receitas_mensal.rename(columns={'Valor': 'Receitas'}, inplace=True)
+        
+        df_compras = df[df['ContaContabil'] == 'Compras de Mercadoria para Revenda']
+        df_compras_mensal = df_compras.groupby('Mês/Ano')['Valor'].sum().reset_index()
+        df_compras_mensal['Compras'] = df_compras_mensal['Valor'].abs()
+        df_compras_mensal.drop(columns=['Valor'], inplace=True)
+        
+        df_comp = pd.merge(df_receitas_mensal, df_compras_mensal, on='Mês/Ano', how='outer').fillna(0)
+        df_comp_melt = df_comp.melt(id_vars='Mês/Ano', value_vars=['Receitas', 'Compras'],
+                                    var_name='Tipo', value_name='Valor')
+        
+        fig_comp2 = px.bar(
+            df_comp_melt,
+            x='Mês/Ano',
+            y='Valor',
+            color='Tipo',
+            barmode='group',
+            title='(Receita Vendas ML + SH) vs (Compras de Mercadoria para Revenda)',
+            labels={'Valor': 'Valor (R$)'},
+            template='plotly_white'
+        )
+        fig_comp2.update_yaxes(tickprefix="R$ ", tickformat=",.2f")
+        with st.container():
+            st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
+            st.plotly_chart(fig_comp2, use_container_width=True)
+            st.markdown("</div>", unsafe_allow_html=True)
     
     # ------------------------------------------------------------------------------
     # ABA 4: Exportação (arquivo XLSX)
