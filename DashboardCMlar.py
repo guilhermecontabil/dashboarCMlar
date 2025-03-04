@@ -22,6 +22,8 @@ def convert_df_to_xlsx(df):
 def formata_valor_brasil(valor):
     if pd.isnull(valor):
         return ""
+    # Converte o valor para string com 2 casas decimais,
+    # trocando vírgula e ponto para o padrão brasileiro:
     return f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 # ------------------------------------------------------------------------------
@@ -137,9 +139,9 @@ if df is not None:
     # ------------------------------------------------------------------------------
     # Cálculo da Contribuição Ajustada por período (consolidação por Mês/Ano)
     # ------------------------------------------------------------------------------
-    # Para cada período, a Contribuição Ajustada é:
-    # (Receita Vendas ML + Receita Vendas SH) - (Compras de Mercadoria para Revenda +
-    # Taxa / Comissão / Fretes - makeplace + Impostos - DAS Simples Nacional)
+    # Para cada período:
+    # Contribuição Ajustada = (Receita Vendas ML + Receita Vendas SH) - 
+    #                         (Compras de Mercadoria para Revenda + Taxa / Comissão / Fretes - makeplace + Impostos - DAS Simples Nacional)
     def calc_contribuicao_ajustada(grupo):
         receita_ml = grupo.loc[grupo["ContaContabil"] == "Receita Vendas ML", "Valor"].sum()
         receita_sh = grupo.loc[grupo["ContaContabil"] == "Receita Vendas SH", "Valor"].sum()
@@ -148,39 +150,47 @@ if df is not None:
         impostos = grupo.loc[grupo["ContaContabil"] == "Impostos - DAS Simples Nacional", "Valor"].sum()
         return (receita_ml + receita_sh) - (compras + taxa + impostos)
     
-    # Cria a coluna de agrupamento "Mês/Ano"
+    # Cria a coluna "Mês/Ano" para agrupamento
     df['Mês/Ano'] = df['Data'].dt.to_period('M').astype(str)
     
-    # Aplica a função para obter um DataFrame com a Contribuição Ajustada por período
+    # DataFrame com Contribuição Ajustada por período
     df_contrib = df.groupby("Mês/Ano").apply(calc_contribuicao_ajustada).reset_index(name="Contribuicao Ajustada")
     
     # ------------------------------------------------------------------------------
-    # Gráfico de Composição da Contribuição Ajustada (Waterfall)
+    # Novo gráfico: Composição da Contribuição Ajustada (Barras Empilhadas)
     # ------------------------------------------------------------------------------
-    # Calcula os valores totais para cada conta no período filtrado (consolidado)
-    receita_ml_total = df[df['ContaContabil'] == "Receita Vendas ML"]['Valor'].sum()
-    receita_sh_total = df[df['ContaContabil'] == "Receita Vendas SH"]['Valor'].sum()
-    compras_total = df[df['ContaContabil'] == "Compras de Mercadoria para Revenda"]['Valor'].sum()
-    taxa_total = df[df['ContaContabil'] == "Taxa / Comissão / Fretes - makeplace"]['Valor'].sum()
-    impostos_total = df[df['ContaContabil'] == "Impostos - DAS Simples Nacional"]['Valor'].sum()
-    # O valor final (Contribuição Ajustada) será a soma dos itens acima
-    # A waterfall chart usará os valores dos itens individuais e calculará o total
-    measures = ["relative", "relative", "relative", "relative", "relative", "total"]
-    x_labels = ["Receita Vendas ML", "Receita Vendas SH",
-                "Compras de Mercadoria para Revenda",
-                "Taxa / Comissão / Fretes - makeplace",
-                "Impostos - DAS Simples Nacional", "Contribuição Ajustada"]
-    y_values = [receita_ml_total, receita_sh_total, -compras_total, -taxa_total, -impostos_total, 0]  # último valor é ignorado para "total"
+    # Cria um DataFrame com os componentes por período
+    df_components = df.groupby("Mês/Ano").agg({
+        "Receita Vendas ML": "sum",
+        "Receita Vendas SH": "sum",
+        "Compras de Mercadoria para Revenda": "sum",
+        "Taxa / Comissão / Fretes - makeplace": "sum",
+        "Impostos - DAS Simples Nacional": "sum"
+    }).reset_index()
     
-    fig_waterfall = go.Figure(go.Waterfall(
-        measure = measures,
-        x = x_labels,
-        y = y_values,
-        connector = {"line": {"color": "rgb(63, 63, 63)"}}
-    ))
-    fig_waterfall.update_layout(
-        title = "Composição da Contribuição Ajustada",
-        waterfallgroupgap = 0.3
+    # Para os custos, invertemos o sinal (para serem exibidos como negativos)
+    for col in ["Compras de Mercadoria para Revenda", "Taxa / Comissão / Fretes - makeplace", "Impostos - DAS Simples Nacional"]:
+        df_components[col] = - df_components[col]
+    
+    # Calcula a Contribuição Ajustada (opcional, para comparação)
+    df_components["Contribuicao Ajustada"] = (df_components["Receita Vendas ML"] +
+                                               df_components["Receita Vendas SH"] +
+                                               df_components["Compras de Mercadoria para Revenda"] +
+                                               df_components["Taxa / Comissão / Fretes - makeplace"] +
+                                               df_components["Impostos - DAS Simples Nacional"])
+    
+    # Cria o gráfico de barras empilhadas
+    fig_components = px.bar(
+        df_components,
+        x="Mês/Ano",
+        y=["Receita Vendas ML", "Receita Vendas SH", "Compras de Mercadoria para Revenda", 
+           "Taxa / Comissão / Fretes - makeplace", "Impostos - DAS Simples Nacional"],
+        barmode="stack",
+        title="Composição da Contribuição Ajustada"
+    )
+    fig_components.update_layout(
+        yaxis_tickprefix="R$ ",
+        yaxis_tickformat=",.2f"
     )
     
     # ------------------------------------------------------------------------------
@@ -302,9 +312,8 @@ if df is not None:
             st.write("Não há dados para exibir a Contribuição Ajustada.")
     
         st.subheader("Composição da Contribuição Ajustada")
-        # Exibe o gráfico waterfall com os componentes do cálculo
         with st.container():
-            st.plotly_chart(fig_waterfall, use_container_width=True)
+            st.plotly_chart(fig_components, use_container_width=True)
     
         st.subheader("Comparação: (Receita Vendas ML + SH) vs (Impostos - DAS Simples Nacional)")
         df_receitas = df[df['ContaContabil'].isin(['Receita Vendas ML', 'Receita Vendas SH'])]
