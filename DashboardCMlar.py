@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 import streamlit.components.v1 as components
 import io
 
@@ -22,7 +21,7 @@ def convert_df_to_xlsx(df):
 def formata_valor_brasil(valor):
     if pd.isnull(valor):
         return ""
-    # Formata número para o padrão brasileiro: milhar com ponto e decimal com vírgula
+    # Formata para padrão brasileiro: milhar com ponto, decimal com vírgula
     return f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 # ------------------------------------------------------------------------------
@@ -135,7 +134,7 @@ if df is not None:
     col5.metric("Impostos (DAS) 🧾", formata_valor_brasil(total_das))
     
     # ------------------------------------------------------------------------------
-    # Garantir que as colunas para o cálculo da Contribuição Ajustada existam
+    # Garantir que as colunas necessárias existam para o cálculo
     # ------------------------------------------------------------------------------
     required_cols = ["Receita Vendas ML", "Receita Vendas SH", "Compras de Mercadoria para Revenda", 
                      "Taxa / Comissão / Fretes - makeplace", "Impostos - DAS Simples Nacional"]
@@ -144,7 +143,12 @@ if df is not None:
             df[col] = 0
     
     # ------------------------------------------------------------------------------
-    # Cálculo da Contribuição Ajustada por período (consolidação por Mês/Ano)
+    # Cria a coluna "Mês/Ano" para agrupamento
+    # ------------------------------------------------------------------------------
+    df['Mês/Ano'] = df['Data'].dt.to_period('M').astype(str)
+    
+    # ------------------------------------------------------------------------------
+    # Cálculo da Contribuição Ajustada por período (consolidação)
     # ------------------------------------------------------------------------------
     # Contribuição Ajustada = (Receita Vendas ML + Receita Vendas SH) - 
     #                         (Compras de Mercadoria para Revenda + Taxa/Comissão/Fretes - makeplace + Impostos - DAS Simples Nacional)
@@ -156,57 +160,53 @@ if df is not None:
         impostos = grupo.loc[grupo["ContaContabil"] == "Impostos - DAS Simples Nacional", "Valor"].sum()
         return (receita_ml + receita_sh) - (compras + taxa + impostos)
     
-    # Cria a coluna "Mês/Ano" para agrupamento
-    df['Mês/Ano'] = df['Data'].dt.to_period('M').astype(str)
-    
-    # DataFrame com Contribuição Ajustada por período
     df_contrib = df.groupby("Mês/Ano").apply(calc_contribuicao_ajustada).reset_index(name="Contribuicao Ajustada")
     
     # ------------------------------------------------------------------------------
-    # Gráfico: Composição da Contribuição Ajustada (Barras Empilhadas)
+    # Evolução da Contribuição Ajustada (por Mês/Ano) com opção de seleção dos componentes
     # ------------------------------------------------------------------------------
-    # Agrupa os componentes por período
-    df_components = df.groupby("Mês/Ano").agg({
-        "Receita Vendas ML": "sum",
-        "Receita Vendas SH": "sum",
-        "Compras de Mercadoria para Revenda": "sum",
-        "Taxa / Comissão / Fretes - makeplace": "sum",
-        "Impostos - DAS Simples Nacional": "sum"
-    }).reset_index()
+    # Cria uma tabela pivot com os componentes
+    df_pivot = df.groupby(['Mês/Ano', 'ContaContabil'])['Valor'].sum().unstack(fill_value=0).reset_index()
     
-    # Para o cálculo, invertemos o sinal dos custos
-    for col in ["Compras de Mercadoria para Revenda", 
-                "Taxa / Comissão / Fretes - makeplace", 
-                "Impostos - DAS Simples Nacional"]:
-        df_components[col] = - df_components[col]
-    
-    # Calcula a Contribuição Ajustada (opcional, para conferência)
-    df_components["Contribuicao Ajustada"] = (
-        df_components["Receita Vendas ML"] +
-        df_components["Receita Vendas SH"] +
-        df_components["Compras de Mercadoria para Revenda"] +
-        df_components["Taxa / Comissão / Fretes - makeplace"] +
-        df_components["Impostos - DAS Simples Nacional"]
+    # Calcula a Contribuição Ajustada total para cada período
+    df_pivot["Contribuição Ajustada"] = (
+        df_pivot.get("Receita Vendas ML", 0) +
+        df_pivot.get("Receita Vendas SH", 0) -
+        (df_pivot.get("Compras de Mercadoria para Revenda", 0) +
+         df_pivot.get("Taxa / Comissão / Fretes - makeplace", 0) +
+         df_pivot.get("Impostos - DAS Simples Nacional", 0))
     )
     
-    # Cria uma cópia para apresentação gráfica onde os custos serão exibidos em valores absolutos
-    df_components_plot = df_components.copy()
-    for col in ["Compras de Mercadoria para Revenda", 
-                "Taxa / Comissão / Fretes - makeplace", 
-                "Impostos - DAS Simples Nacional"]:
-        df_components_plot[col] = df_components_plot[col].abs()
+    # Lista de componentes disponíveis para exibição
+    evol_options = st.multiselect(
+        "Selecione os componentes para exibir na evolução:",
+        options=["Receita Vendas ML", "Receita Vendas SH", 
+                 "Compras de Mercadoria para Revenda", 
+                 "Taxa / Comissão / Fretes - makeplace", 
+                 "Impostos - DAS Simples Nacional", "Contribuição Ajustada"],
+        default=["Receita Vendas ML", "Receita Vendas SH", 
+                 "Compras de Mercadoria para Revenda", 
+                 "Taxa / Comissão / Fretes - makeplace", 
+                 "Impostos - DAS Simples Nacional", "Contribuição Ajustada"]
+    )
     
-    fig_components = px.bar(
-        df_components_plot,
+    # Filtra a tabela pivot para os componentes selecionados
+    cols_to_plot = ["Mês/Ano"] + evol_options
+    df_evol = df_pivot[cols_to_plot]
+    
+    # Transforma em formato longo para o Plotly
+    df_evol_long = df_evol.melt(id_vars="Mês/Ano", value_vars=evol_options,
+                                var_name="Componente", value_name="Valor")
+    
+    fig_evol = px.line(
+        df_evol_long,
         x="Mês/Ano",
-        y=["Receita Vendas ML", "Receita Vendas SH", 
-           "Compras de Mercadoria para Revenda", 
-           "Taxa / Comissão / Fretes - makeplace", 
-           "Impostos - DAS Simples Nacional"],
-        barmode="stack",
-        title="Composição da Contribuição Ajustada"
+        y="Valor",
+        color="Componente",
+        markers=True,
+        title="Evolução da Contribuição Ajustada (por Mês/Ano)"
     )
-    fig_components.update_layout(
+    fig_evol.update_layout(
         yaxis_tickprefix="R$ ",
         yaxis_tickformat=",.2f"
     )
@@ -311,27 +311,9 @@ if df is not None:
             st.write("Não há dados suficientes para exibir o gráfico de Entradas x Saídas.")
     
         st.subheader("Evolução da Contribuição Ajustada (por Mês/Ano)")
-        if not df_contrib.empty:
-            fig_contrib = px.line(
-                df_contrib,
-                x='Mês/Ano',
-                y="Contribuicao Ajustada",
-                title="Evolução da Contribuição Ajustada",
-                markers=True,
-                labels={'Contribuicao Ajustada': 'Contribuição Ajustada (R$)'},
-                template='plotly_white'
-            )
-            fig_contrib.update_yaxes(tickprefix="R$ ", tickformat=",.2f")
-            with st.container():
-                st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
-                st.plotly_chart(fig_contrib, use_container_width=True)
-                st.markdown("</div>", unsafe_allow_html=True)
-        else:
-            st.write("Não há dados para exibir a Contribuição Ajustada.")
-    
-        st.subheader("Composição da Contribuição Ajustada")
+        # Exibe a evolução dos componentes selecionados
         with st.container():
-            st.plotly_chart(fig_components, use_container_width=True)
+            st.plotly_chart(fig_evol, use_container_width=True)
     
         st.subheader("Comparação: (Receita Vendas ML + SH) vs (Impostos - DAS Simples Nacional)")
         df_receitas = df[df['ContaContabil'].isin(['Receita Vendas ML', 'Receita Vendas SH'])]
