@@ -95,6 +95,7 @@ else:
     st.sidebar.warning("Por favor, faça o upload de um arquivo Excel para começar.")
 
 if df is not None:
+    # Filtro global de contas
     all_accounts = sorted(df["ContaContabil"].unique())
     select_all = st.sidebar.checkbox("Selecionar todas as contas", value=True)
     if select_all:
@@ -105,22 +106,17 @@ if df is not None:
     df = df[df["ContaContabil"].isin(selected_accounts_global)]
 
 # ------------------------------------------------------------------------------
-# Conversão da coluna "Data" e filtro de datas
+# Conversão da coluna "Data" e filtro por "Mês/Ano"
 # ------------------------------------------------------------------------------
 if df is not None:
-    # Converte a coluna 'Data' para datetime com dayfirst=True (padrão brasileiro)
+    # Converte a coluna 'Data' para datetime (dayfirst=True para padrão brasileiro)
     df['Data'] = pd.to_datetime(df['Data'], dayfirst=True, errors='coerce')
-    # Cria uma coluna auxiliar com apenas a parte da data
-    df['Data_date'] = df['Data'].dt.date
-    
-    min_date = df['Data_date'].min() if pd.notnull(df['Data_date'].min()) else pd.Timestamp('today').date()
-    max_date = df['Data_date'].max() if pd.notnull(df['Data_date'].max()) else pd.Timestamp('today').date()
-    
-    selected_dates = st.sidebar.date_input("Selecione o intervalo de datas:", [min_date, max_date])
-    if isinstance(selected_dates, list) and len(selected_dates) == 2:
-        start_date, end_date = selected_dates
-        # Filtra comparando somente a parte da data
-        df = df[(df['Data_date'] >= start_date) & (df['Data_date'] <= end_date)]
+    # Cria a coluna "Mês/Ano"
+    df['Mês/Ano'] = df['Data'].dt.to_period('M').astype(str)
+    # Filtra por Mês/Ano usando um multiselect
+    all_months = sorted(df["Mês/Ano"].unique())
+    selected_months = st.sidebar.multiselect("Selecione os meses (Mês/Ano):", options=all_months, default=all_months)
+    df = df[df["Mês/Ano"].isin(selected_months)]
     
     if 'GrupoDeConta' in df.columns:
         grupos_unicos = df['GrupoDeConta'].dropna().unique()
@@ -137,7 +133,6 @@ if df is not None:
 # ------------------------------------------------------------------------------
 if df is not None:
     df['Valor'] = pd.to_numeric(df['Valor'], errors='coerce')
-    df['Mês/Ano'] = df['Data'].dt.to_period('M').astype(str)
     
     total_entradas = df[df['Valor'] > 0]['Valor'].sum()
     total_saidas = df[df['Valor'] < 0]['Valor'].sum()
@@ -165,7 +160,7 @@ if df is not None:
         if col not in df.columns:
             df[col] = 0
     
-    # Cálculo da Margem de Contribuição Ajustada por período
+    # Cálculo da Margem de Contribuição Ajustada por período:
     # Fórmula: (Receita Vendas ML + Receita Vendas SH) - (|Compras de Mercadoria para Revenda| +
     #         |Taxa / Comissão / Fretes - makeplace| + |Impostos - DAS Simples Nacional|)
     def calc_contribuicao_ajustada(grupo):
@@ -270,8 +265,36 @@ if df is not None:
     )
     
     # ------------------------------
-    # Abas do Dashboard
+    # Novo Gráfico: Comparação (Receita Vendas ML + SH) vs (Compras de Mercadoria para Revenda)
     # ------------------------------
+    df_receitas = df[df['ContaContabil'].isin(['Receita Vendas ML', 'Receita Vendas SH'])]
+    df_receitas_mensal = df_receitas.groupby('Mês/Ano')['Valor'].sum().reset_index()
+    df_receitas_mensal.rename(columns={'Valor': 'Receitas'}, inplace=True)
+    
+    df_compras = df[df['ContaContabil'] == 'Compras de Mercadoria para Revenda']
+    df_compras_mensal = df_compras.groupby('Mês/Ano')['Valor'].sum().reset_index()
+    df_compras_mensal['Compras'] = df_compras_mensal['Valor'].abs()
+    df_compras_mensal.drop(columns=['Valor'], inplace=True)
+    
+    df_comp = pd.merge(df_receitas_mensal, df_compras_mensal, on='Mês/Ano', how='outer').fillna(0)
+    df_comp_melt = df_comp.melt(id_vars='Mês/Ano', value_vars=['Receitas', 'Compras'],
+                                var_name='Tipo', value_name='Valor')
+    
+    fig_comp2 = px.bar(
+        df_comp_melt,
+        x='Mês/Ano',
+        y='Valor',
+        color='Tipo',
+        barmode='group',
+        title='(Receita Vendas ML + SH) vs (Compras de Mercadoria para Revenda)',
+        labels={'Valor': 'Valor (R$)'},
+        template='plotly_white'
+    )
+    fig_comp2.update_yaxes(tickprefix="R$ ", tickformat=",.2f")
+    
+    # ------------------------------------------------------------------------------
+    # Abas do Dashboard
+    # ------------------------------------------------------------------------------
     tab1, tab2, tab3, tab4 = st.tabs(["📊 Resumo", "📄 Dados", "📈 Gráficos", "💾 Exportação"])
     
     # ABA 1: Resumo por Conta Contábil
