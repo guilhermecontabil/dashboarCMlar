@@ -21,7 +21,7 @@ def convert_df_to_xlsx(df):
 def formata_valor_brasil(valor):
     if pd.isnull(valor):
         return ""
-    # Formata para padrão brasileiro: milhar com ponto, decimal com vírgula
+    # Formata número para o padrão brasileiro: milhar com ponto e decimal com vírgula
     return f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 # ------------------------------------------------------------------------------
@@ -148,27 +148,30 @@ if df is not None:
     df['Mês/Ano'] = df['Data'].dt.to_period('M').astype(str)
     
     # ------------------------------------------------------------------------------
-    # Cálculo da Contribuição Ajustada por período (consolidação)
+    # Cálculo da Margem de Contribuição (Contribuição Ajustada) por período
     # ------------------------------------------------------------------------------
-    # Contribuição Ajustada = (Receita Vendas ML + Receita Vendas SH) - 
-    #                         (Compras de Mercadoria para Revenda + Taxa/Comissão/Fretes - makeplace + Impostos - DAS Simples Nacional)
+    # Fórmula: (Receita Vendas ML + Receita Vendas SH) - 
+    #          (Compras de Mercadoria para Revenda + Taxa/Comissão/Fretes - makeplace + Impostos - DAS Simples Nacional)
     def calc_contribuicao_ajustada(grupo):
         receita_ml = grupo.loc[grupo["ContaContabil"] == "Receita Vendas ML", "Valor"].sum()
         receita_sh = grupo.loc[grupo["ContaContabil"] == "Receita Vendas SH", "Valor"].sum()
+        total_receita = receita_ml + receita_sh
+
         compras = grupo.loc[grupo["ContaContabil"] == "Compras de Mercadoria para Revenda", "Valor"].sum()
         taxa = grupo.loc[grupo["ContaContabil"] == "Taxa / Comissão / Fretes - makeplace", "Valor"].sum()
         impostos = grupo.loc[grupo["ContaContabil"] == "Impostos - DAS Simples Nacional", "Valor"].sum()
-        return (receita_ml + receita_sh) - (compras + taxa + impostos)
+        total_despesas = compras + taxa + impostos
+
+        return total_receita - total_despesas
     
     df_contrib = df.groupby("Mês/Ano").apply(calc_contribuicao_ajustada).reset_index(name="Contribuicao Ajustada")
     
     # ------------------------------------------------------------------------------
-    # Evolução da Contribuição Ajustada (por Mês/Ano) com opção de seleção dos componentes
+    # Evolução da Contribuição Ajustada (por Mês/Ano) com seleção de componentes
     # ------------------------------------------------------------------------------
-    # Cria uma tabela pivot com os componentes
+    # Pivot da tabela: cada componente em colunas
     df_pivot = df.groupby(['Mês/Ano', 'ContaContabil'])['Valor'].sum().unstack(fill_value=0).reset_index()
-    
-    # Calcula a Contribuição Ajustada total para cada período
+    # Cálculo do total (margem de contribuição) conforme a fórmula correta:
     df_pivot["Contribuição Ajustada"] = (
         df_pivot.get("Receita Vendas ML", 0) +
         df_pivot.get("Receita Vendas SH", 0) -
@@ -177,7 +180,7 @@ if df is not None:
          df_pivot.get("Impostos - DAS Simples Nacional", 0))
     )
     
-    # Lista de componentes disponíveis para exibição
+    # Opção para selecionar quais componentes exibir no gráfico de evolução
     evol_options = st.multiselect(
         "Selecione os componentes para exibir na evolução:",
         options=["Receita Vendas ML", "Receita Vendas SH", 
@@ -190,11 +193,8 @@ if df is not None:
                  "Impostos - DAS Simples Nacional", "Contribuição Ajustada"]
     )
     
-    # Filtra a tabela pivot para os componentes selecionados
     cols_to_plot = ["Mês/Ano"] + evol_options
     df_evol = df_pivot[cols_to_plot]
-    
-    # Transforma em formato longo para o Plotly
     df_evol_long = df_evol.melt(id_vars="Mês/Ano", value_vars=evol_options,
                                 var_name="Componente", value_name="Valor")
     
@@ -311,7 +311,6 @@ if df is not None:
             st.write("Não há dados suficientes para exibir o gráfico de Entradas x Saídas.")
     
         st.subheader("Evolução da Contribuição Ajustada (por Mês/Ano)")
-        # Exibe a evolução dos componentes selecionados
         with st.container():
             st.plotly_chart(fig_evol, use_container_width=True)
     
