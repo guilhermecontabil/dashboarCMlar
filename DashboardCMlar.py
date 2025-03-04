@@ -108,14 +108,19 @@ if df is not None:
 # Conversão da coluna "Data" e filtro de datas
 # ------------------------------------------------------------------------------
 if df is not None:
+    # Converte a coluna 'Data' para datetime com dayfirst=True (padrão brasileiro)
     df['Data'] = pd.to_datetime(df['Data'], dayfirst=True, errors='coerce')
-    min_date = df['Data'].min().date() if pd.notnull(df['Data'].min()) else pd.Timestamp('today').date()
-    max_date = df['Data'].max().date() if pd.notnull(df['Data'].max()) else pd.Timestamp('today').date()
+    # Cria uma coluna auxiliar com apenas a parte da data
+    df['Data_date'] = df['Data'].dt.date
+    
+    min_date = df['Data_date'].min() if pd.notnull(df['Data_date'].min()) else pd.Timestamp('today').date()
+    max_date = df['Data_date'].max() if pd.notnull(df['Data_date'].max()) else pd.Timestamp('today').date()
     
     selected_dates = st.sidebar.date_input("Selecione o intervalo de datas:", [min_date, max_date])
     if isinstance(selected_dates, list) and len(selected_dates) == 2:
         start_date, end_date = selected_dates
-        df = df[(df['Data'] >= pd.to_datetime(start_date)) & (df['Data'] <= pd.to_datetime(end_date))]
+        # Filtra comparando somente a parte da data
+        df = df[(df['Data_date'] >= start_date) & (df['Data_date'] <= end_date)]
     
     if 'GrupoDeConta' in df.columns:
         grupos_unicos = df['GrupoDeConta'].dropna().unique()
@@ -177,7 +182,6 @@ if df is not None:
     
     # Cria pivot para o gráfico de evolução
     df_pivot = df.groupby(['Mês/Ano', 'ContaContabil'])['Valor'].sum().unstack(fill_value=0).reset_index()
-    # Cálculo da margem consolidada (Contribuição Ajustada) usando valor absoluto para despesas
     df_pivot["Contribuição Ajustada"] = (
         df_pivot.get("Receita Vendas ML", 0) +
         df_pivot.get("Receita Vendas SH", 0) -
@@ -208,7 +212,7 @@ if df is not None:
         unsafe_allow_html=True
     )
     
-    # Mini-gráfico (sparkline) da evolução da margem de contribuição, em reais
+    # Mini-gráfico (sparkline) da evolução da margem
     fig_spark = px.line(
         df_contrib,
         x="Mês/Ano",
@@ -266,37 +270,8 @@ if df is not None:
     )
     
     # ------------------------------
-    # Novo Gráfico: Comparação (Receita Vendas ML+SH) vs (Compras de Mercadoria para Revenda)
-    # ------------------------------
-    df_receitas = df[df['ContaContabil'].isin(['Receita Vendas ML', 'Receita Vendas SH'])]
-    df_receitas_mensal = df_receitas.groupby('Mês/Ano')['Valor'].sum().reset_index()
-    df_receitas_mensal.rename(columns={'Valor': 'Receitas'}, inplace=True)
-    
-    df_compras = df[df['ContaContabil'] == 'Compras de Mercadoria para Revenda']
-    df_compras_mensal = df_compras.groupby('Mês/Ano')['Valor'].sum().reset_index()
-    # Utiliza o valor absoluto para as compras
-    df_compras_mensal['Compras'] = df_compras_mensal['Valor'].abs()
-    df_compras_mensal.drop(columns=['Valor'], inplace=True)
-    
-    df_comp = pd.merge(df_receitas_mensal, df_compras_mensal, on='Mês/Ano', how='outer').fillna(0)
-    df_comp_melt = df_comp.melt(id_vars='Mês/Ano', value_vars=['Receitas', 'Compras'],
-                                var_name='Tipo', value_name='Valor')
-    
-    fig_comp2 = px.bar(
-        df_comp_melt,
-        x='Mês/Ano',
-        y='Valor',
-        color='Tipo',
-        barmode='group',
-        title='(Receita Vendas ML + SH) vs (Compras de Mercadoria para Revenda)',
-        labels={'Valor': 'Valor (R$)'},
-        template='plotly_white'
-    )
-    fig_comp2.update_yaxes(tickprefix="R$ ", tickformat=",.2f")
-    
-    # ------------------------------------------------------------------------------
     # Abas do Dashboard
-    # ------------------------------------------------------------------------------
+    # ------------------------------
     tab1, tab2, tab3, tab4 = st.tabs(["📊 Resumo", "📄 Dados", "📈 Gráficos", "💾 Exportação"])
     
     # ABA 1: Resumo por Conta Contábil
@@ -433,39 +408,6 @@ if df is not None:
                 st.markdown("</div>", unsafe_allow_html=True)
         else:
             st.write("Não há dados para gerar a comparação entre Receitas e Impostos (DAS).")
-        
-        # ------------------------------
-        # Novo Gráfico: Comparação (Receita Vendas ML+SH) vs (Compras de Mercadoria para Revenda)
-        # ------------------------------
-        st.subheader("Comparação: (Receita Vendas ML + SH) vs (Compras de Mercadoria para Revenda)")
-        df_receitas = df[df['ContaContabil'].isin(['Receita Vendas ML', 'Receita Vendas SH'])]
-        df_receitas_mensal = df_receitas.groupby('Mês/Ano')['Valor'].sum().reset_index()
-        df_receitas_mensal.rename(columns={'Valor': 'Receitas'}, inplace=True)
-        
-        df_compras = df[df['ContaContabil'] == 'Compras de Mercadoria para Revenda']
-        df_compras_mensal = df_compras.groupby('Mês/Ano')['Valor'].sum().reset_index()
-        df_compras_mensal['Compras'] = df_compras_mensal['Valor'].abs()
-        df_compras_mensal.drop(columns=['Valor'], inplace=True)
-        
-        df_comp = pd.merge(df_receitas_mensal, df_compras_mensal, on='Mês/Ano', how='outer').fillna(0)
-        df_comp_melt = df_comp.melt(id_vars='Mês/Ano', value_vars=['Receitas', 'Compras'],
-                                    var_name='Tipo', value_name='Valor')
-        
-        fig_comp2 = px.bar(
-            df_comp_melt,
-            x='Mês/Ano',
-            y='Valor',
-            color='Tipo',
-            barmode='group',
-            title='(Receita Vendas ML + SH) vs (Compras de Mercadoria para Revenda)',
-            labels={'Valor': 'Valor (R$)'},
-            template='plotly_white'
-        )
-        fig_comp2.update_yaxes(tickprefix="R$ ", tickformat=",.2f")
-        with st.container():
-            st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
-            st.plotly_chart(fig_comp2, use_container_width=True)
-            st.markdown("</div>", unsafe_allow_html=True)
     
     # ------------------------------------------------------------------------------
     # ABA 4: Exportação (arquivo XLSX)
@@ -492,4 +434,4 @@ else:
 # ------------------------------------------------------------------------------
 # Footer personalizado
 # ------------------------------------------------------------------------------
-st.markdown('<div style="text-align:center; color:#7F8C8D; font-size:0.8rem;">Dashboard desenvolvido por FOUR CONTABILIDADE - 2025</div>', unsafe_allow_html=True)
+st.markdown('<div style="text-align:center; color:#7F8C8D; font-size:0.8rem;">Dashboard desenvolvido por [Seu Nome] - 2025</div>', unsafe_allow_html=True)
