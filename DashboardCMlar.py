@@ -15,31 +15,32 @@ def formata_valor_brasil(valor):
         return ""
     return f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
-# CSS Global para forçar texto preto em toda a dashboard
+# CSS Global: Muda apenas a cor da letra para preto, mantendo o fundo atual
 st.markdown("""
     <style>
-    /* ====================== CONFIGURAÇÃO GLOBAL ====================== */
-    /* Força o texto para preto em todos os elementos */
+    /* Define que todo o texto da aplicação ficará preto */
     html, body, [data-testid="stAppViewContainer"] * {
         color: #000000 !important;
     }
-    /* Define o fundo global como branco e mantém a fonte */
+    /* Mantém o fundo atual */
     html, body, [data-testid="stAppViewContainer"], .main, .block-container {
-        background-color: #FFFFFF !important;
+        background-color: #2C3E50 !important;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
-    /* Headings: garantir que os títulos também fiquem com texto preto */
+    /* Títulos com texto preto */
     h1, h2, h3, h4, h5, h6 {
         color: #000000 !important;
     }
-    /* ====================== MÉTRICAS ====================== */
+    /* Métricas */
     .stMetric-label {
         font-weight: bold !important;
+        color: #000000 !important;
     }
     .stMetric-value {
         font-size: 1.5rem !important;
+        color: #000000 !important;
     }
-    /* ====================== BOTÕES ====================== */
+    /* Botões: Apenas o texto muda para preto; fundo permanece */
     .stButton > button {
         background-color: #1ABC9C !important;
         color: #000000 !important;
@@ -53,7 +54,7 @@ st.markdown("""
         transform: scale(1.05);
         box-shadow: 0 6px 8px rgba(0,0,0,0.3);
     }
-    /* ====================== SIDEBAR ====================== */
+    /* Sidebar: Texto preto */
     [data-testid="stSidebar"] {
         background-color: #34495E !important;
     }
@@ -61,14 +62,13 @@ st.markdown("""
         color: #000000 !important;
         font-weight: bold !important;
     }
-    /* ====================== INPUTS E SLIDERS ====================== */
+    /* Inputs e sliders: Texto preto */
     input, .st-bj, .st-at, .stTextInput, .stDateInput {
         background-color: #3A4F63 !important;
         border: 1px solid #1ABC9C !important;
         color: #000000 !important;
     }
-    /* ====================== CORREÇÃO DO FILE UPLOADER ====================== */
-    /* Garante fundo branco e texto preto na área de upload */
+    /* File uploader: Força fundo branco e texto preto para a área de drag & drop */
     [data-testid="stFileUploadDropzone"] {
         background-color: #FFFFFF !important;
         border: 1px dashed #1ABC9C !important;
@@ -78,11 +78,11 @@ st.markdown("""
         color: #000000 !important;
         font-weight: 500;
     }
-    /* ====================== SEPARADOR ====================== */
+    /* Separador */
     hr {
         border: 1px solid #1ABC9C;
     }
-    /* ====================== FOOTER PERSONALIZADO ====================== */
+    /* Footer */
     .custom-footer {
         position: fixed;
         bottom: 10px;
@@ -164,76 +164,63 @@ if df is not None:
     # ------------------------------------
     tab1, tab2, tab3, tab4 = st.tabs(["📊 Resumo", "📄 Dados", "📈 Gráficos", "💾 Exportação"])
     
-    # ==========================
-    # ABA 1: RESUMO
-    # ==========================
+    # ABA 1: Resumo
     with tab1:
         st.markdown("<h2>Resumo por Conta Contábil</h2>", unsafe_allow_html=True)
-    
         df['Mês/Ano'] = df['Data'].dt.to_period('M').astype(str)
         resumo = df.groupby(['ContaContabil', 'Mês/Ano'])['Valor'].sum().reset_index()
-    
         resumo_pivot = resumo.pivot(index='ContaContabil', columns='Mês/Ano', values='Valor').fillna(0)
         resumo_pivot['Total'] = resumo_pivot.sum(axis=1)
         resumo_pivot.sort_values(by='Total', ascending=False, inplace=True)
-    
-        # Estilo do DataFrame: cabeçalhos e corpo com fundo branco e texto preto
         resumo_pivot_styled = (
             resumo_pivot
             .style
             .set_table_styles([
                 {'selector': 'thead tr th',
-                 'props': [('background-color', '#FFFFFF'),
+                 'props': [('background-color', '#2C3E50'),
                            ('color', '#000000'),
                            ('font-weight', 'bold')]},
                 {'selector': 'tbody tr th',
-                 'props': [('background-color', '#FFFFFF'),
+                 'props': [('background-color', '#2C3E50'),
                            ('color', '#000000'),
                            ('font-weight', 'bold')]},
                 {'selector': 'tbody tr td',
-                 'props': [('background-color', '#FFFFFF'),
+                 'props': [('background-color', '#2C3E50'),
                            ('color', '#000000')]}
             ])
             .format(lambda x: formata_valor_brasil(x))
         )
         st.table(resumo_pivot_styled)
     
-    # ==========================
-    # ABA 2: DADOS
-    # ==========================
+    # ABA 2: Dados
     with tab2:
         st.markdown("<h2>Dados Importados</h2>", unsafe_allow_html=True)
-    
         df_sorted = df.sort_values(by='Valor', ascending=False)
-    
         df_sorted_styled = (
             df_sorted
             .style
             .set_table_styles([
                 {'selector': 'thead tr th',
-                 'props': [('background-color', '#FFFFFF'),
+                 'props': [('background-color', '#2C3E50'),
                            ('color', '#000000'),
                            ('font-weight', 'bold')]},
                 {'selector': 'tbody tr th',
-                 'props': [('background-color', '#FFFFFF'),
+                 'props': [('background-color', '#2C3E50'),
                            ('color', '#000000'),
                            ('font-weight', 'bold')]},
                 {'selector': 'tbody tr td',
-                 'props': [('background-color', '#FFFFFF'),
+                 'props': [('background-color', '#2C3E50'),
                            ('color', '#000000')]}
             ])
             .format({'Valor': lambda x: formata_valor_brasil(x)})
         )
         st.table(df_sorted_styled)
     
-    # ==========================
-    # ABA 3: GRÁFICOS
-    # ==========================
+    # ABA 3: Gráficos
     with tab3:
         st.subheader("Entradas (Valores Positivos)")
         df_positivo = df[df['Valor'] > 0]
         df_positivo_agrupado = df_positivo.groupby('ContaContabil')['Valor'].sum().reset_index()
-    
         if not df_positivo_agrupado.empty:
             fig_entradas = px.bar(
                 df_positivo_agrupado,
@@ -242,7 +229,7 @@ if df is not None:
                 color='ContaContabil',
                 title='Entradas por Conta Contábil',
                 labels={'Valor': 'Valor (R$)'},
-                template='plotly_white',
+                template='plotly_dark',
                 color_discrete_sequence=px.colors.qualitative.Vivid
             )
             fig_entradas.update_layout(
@@ -260,7 +247,6 @@ if df is not None:
         st.subheader("Saídas (Valores Negativos)")
         df_negativo = df[df['Valor'] < 0]
         df_negativo_agrupado = df_negativo.groupby('ContaContabil')['Valor'].sum().abs().reset_index()
-    
         if not df_negativo_agrupado.empty:
             top_5_saidas = df_negativo_agrupado.nlargest(5, 'Valor')
             fig_saidas = px.bar(
@@ -270,7 +256,7 @@ if df is not None:
                 orientation='h',
                 title='Top 5 Categorias de Saídas',
                 labels={'Valor': 'Valor (R$)', 'ContaContabil': 'Conta Contábil'},
-                template='plotly_white',
+                template='plotly_dark',
                 color_discrete_sequence=['#E74C3C']
             )
             fig_saidas.update_layout(
@@ -289,11 +275,9 @@ if df is not None:
         df_entradas_mensal = df[df['Valor'] > 0].groupby('Mês/Ano')['Valor'].sum().reset_index()
         df_saidas_mensal = df[df['Valor'] < 0].groupby('Mês/Ano')['Valor'].sum().reset_index()
         df_saidas_mensal['Valor'] = df_saidas_mensal['Valor'].abs()
-    
         df_entradas_mensal['Tipo'] = 'Entradas'
         df_saidas_mensal['Tipo'] = 'Saídas'
         df_dre = pd.concat([df_entradas_mensal, df_saidas_mensal], axis=0)
-    
         if not df_dre.empty:
             fig_dre = px.bar(
                 df_dre,
@@ -303,7 +287,7 @@ if df is not None:
                 barmode='group',
                 title='Entradas x Saídas (por Mês/Ano)',
                 labels={'Valor': 'Valor (R$)'},
-                template='plotly_white'
+                template='plotly_dark'
             )
             fig_dre.update_yaxes(tickprefix="R$ ", tickformat=",.2f")
             fig_dre.update_layout(
@@ -319,12 +303,10 @@ if df is not None:
         df_receitas = df[df['ContaContabil'].isin(['Receita Vendas ML', 'Receita Vendas SH'])]
         df_receitas_mensal = df_receitas.groupby('Mês/Ano')['Valor'].sum().reset_index()
         df_receitas_mensal.rename(columns={'Valor': 'Receitas'}, inplace=True)
-    
         df_impostos = df[df['ContaContabil'] == 'Impostos - DAS Simples Nacional'].copy()
         df_impostos['Valor'] = df_impostos['Valor'].abs()
         df_impostos_mensal = df_impostos.groupby('Mês/Ano')['Valor'].sum().reset_index()
         df_impostos_mensal.rename(columns={'Valor': 'Impostos'}, inplace=True)
-    
         df_comparacao = pd.merge(df_receitas_mensal, df_impostos_mensal, on='Mês/Ano', how='outer').fillna(0)
         if not df_comparacao.empty:
             df_comparacao_melt = df_comparacao.melt(
@@ -341,7 +323,7 @@ if df is not None:
                 barmode='group',
                 title='(Receita Vendas ML + SH) vs (Impostos - DAS Simples Nacional)',
                 labels={'Valor': 'Valor (R$)'},
-                template='plotly_white'
+                template='plotly_dark'
             )
             fig_comp.update_yaxes(tickprefix="R$ ", tickformat=",.2f")
             fig_comp.update_layout(
@@ -353,16 +335,13 @@ if df is not None:
         else:
             st.write("Não há dados para gerar a comparação entre Receitas e Impostos (DAS).")
     
-    # ==========================
-    # ABA 4: EXPORTAÇÃO
-    # ==========================
+    # ABA 4: Exportação
     with tab4:
         st.subheader("Exportar Resumo")
         resumo2 = df.groupby(['ContaContabil', 'Mês/Ano'])['Valor'].sum().reset_index()
         resumo_pivot2 = resumo2.pivot(index='ContaContabil', columns='Mês/Ano', values='Valor').fillna(0)
         resumo_pivot2['Total'] = resumo_pivot2.sum(axis=1)
         resumo_pivot2.sort_values(by='Total', ascending=False, inplace=True)
-    
         csv_data = convert_df(resumo_pivot2)
         st.download_button(
             label="💾 Exportar Resumo para CSV",
