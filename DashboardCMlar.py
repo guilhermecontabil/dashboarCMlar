@@ -22,8 +22,7 @@ def convert_df_to_xlsx(df):
 def formata_valor_brasil(valor):
     if pd.isnull(valor):
         return ""
-    # Converte o valor para string com 2 casas decimais,
-    # trocando vírgula e ponto para o padrão brasileiro:
+    # Formata número para o padrão brasileiro: milhar com ponto e decimal com vírgula
     return f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 # ------------------------------------------------------------------------------
@@ -137,11 +136,20 @@ if df is not None:
     col5.metric("Impostos (DAS) 🧾", formata_valor_brasil(total_das))
     
     # ------------------------------------------------------------------------------
+    # Garantir que as colunas para a análise da Contribuição Ajustada existam
+    # ------------------------------------------------------------------------------
+    required_cols = ["Receita Vendas ML", "Receita Vendas SH", "Compras de Mercadoria para Revenda", 
+                     "Taxa / Comissão / Fretes - makeplace", "Impostos - DAS Simples Nacional"]
+    for col in required_cols:
+        if col not in df.columns:
+            df[col] = 0  # Cria a coluna com valor zero se estiver faltando
+    
+    # ------------------------------------------------------------------------------
     # Cálculo da Contribuição Ajustada por período (consolidação por Mês/Ano)
     # ------------------------------------------------------------------------------
     # Para cada período:
     # Contribuição Ajustada = (Receita Vendas ML + Receita Vendas SH) - 
-    #                         (Compras de Mercadoria para Revenda + Taxa / Comissão / Fretes - makeplace + Impostos - DAS Simples Nacional)
+    #                         (Compras de Mercadoria para Revenda + Taxa/Comissão/Fretes - makeplace + Impostos - DAS Simples Nacional)
     def calc_contribuicao_ajustada(grupo):
         receita_ml = grupo.loc[grupo["ContaContabil"] == "Receita Vendas ML", "Valor"].sum()
         receita_sh = grupo.loc[grupo["ContaContabil"] == "Receita Vendas SH", "Valor"].sum()
@@ -159,7 +167,7 @@ if df is not None:
     # ------------------------------------------------------------------------------
     # Novo gráfico: Composição da Contribuição Ajustada (Barras Empilhadas)
     # ------------------------------------------------------------------------------
-    # Cria um DataFrame com os componentes por período
+    # Agrupa os componentes por período
     df_components = df.groupby("Mês/Ano").agg({
         "Receita Vendas ML": "sum",
         "Receita Vendas SH": "sum",
@@ -168,11 +176,11 @@ if df is not None:
         "Impostos - DAS Simples Nacional": "sum"
     }).reset_index()
     
-    # Para os custos, invertemos o sinal (para serem exibidos como negativos)
+    # Para os custos, invertemos o sinal para exibir como valores negativos
     for col in ["Compras de Mercadoria para Revenda", "Taxa / Comissão / Fretes - makeplace", "Impostos - DAS Simples Nacional"]:
-        df_components[col] = - df_components[col]
+        df_components[col] = -df_components[col]
     
-    # Calcula a Contribuição Ajustada (opcional, para comparação)
+    # Calcula a Contribuição Ajustada para conferência (opcional)
     df_components["Contribuicao Ajustada"] = (df_components["Receita Vendas ML"] +
                                                df_components["Receita Vendas SH"] +
                                                df_components["Compras de Mercadoria para Revenda"] +
